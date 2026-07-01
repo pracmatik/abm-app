@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ABM Nous Espais · Automatitzacions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --ink:#111827; --ink2:#374151; --mut:#6b7280; --line:#e7e9ee; --bg:#f6f7f9; --card:#ffffff;
+  --acc:#1f6feb; --acc-d:#1b5fd0; --ok:#16a34a; --warn:#d97706; --info:#2563eb; --done:#0f766e;
+  --sh:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
+  --r:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+.hidden{display:none!important}
+a{color:var(--acc);text-decoration:none}
+
+/* ---------- Login ---------- */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(1200px 600px at 50% -10%, #eef2f7, var(--bg))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sh)}
+.login-box{width:100%;max-width:400px;padding:34px 30px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.3px}
+.brand .dot{width:30px;height:30px;border-radius:9px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:800}
+.login-box h1{font-size:20px;margin:22px 0 4px;letter-spacing:-.4px}
+.login-box p.sub{color:var(--mut);margin:0 0 22px;font-size:13.5px}
+label{display:block;font-size:12.5px;font-weight:600;color:var(--ink2);margin:14px 0 6px}
+input,select{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;background:#fff;outline:none;transition:border .15s,box-shadow .15s}
+input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(31,111,235,.12)}
+.btn{background:var(--acc);color:#fff;border:0;padding:12px 16px;border-radius:10px;font-weight:600;font-size:14px;transition:background .15s,transform .05s}
+.btn:hover{background:var(--acc-d)} .btn:active{transform:translateY(1px)}
+.btn.block{width:100%;margin-top:20px}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{background:#f3f4f6}
+.err{color:#b91c1c;font-size:13px;margin-top:12px;min-height:16px}
+
+/* ---------- App shell ---------- */
+#app{min-height:100vh}
+header.top{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top-in{max-width:1120px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:16px}
+.top .brand{font-size:16px}
+.crumb{color:var(--mut);font-size:13.5px;font-weight:600}
+.crumb b{color:var(--ink)}
+.spacer{flex:1}
+.who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink2)}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1f6feb,#0ea5e9);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 60px}
+
+/* ---------- Home / mòduls ---------- */
+.hello{margin:6px 0 22px}
+.hello h1{font-size:26px;letter-spacing:-.6px;margin:0 0 4px}
+.hello p{color:var(--mut);margin:0;font-size:14.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.mod{padding:20px;border-radius:var(--r);border:1px solid var(--line);background:var(--card);box-shadow:var(--sh);position:relative;transition:transform .15s,box-shadow .15s}
+.mod.on{cursor:pointer}
+.mod.on:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(16,24,40,.10)}
+.mod .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:#eef4ff;margin-bottom:14px}
+.mod h3{margin:0 0 4px;font-size:16px;letter-spacing:-.2px}
+.mod p{margin:0;color:var(--mut);font-size:13px;line-height:1.45}
+.tag{position:absolute;top:16px;right:16px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px}
+.tag.active{background:#e7f6ec;color:#137a3a}
+.tag.soon{background:#f1f2f4;color:#6b7280}
+.mod.soon{opacity:.72}
+.mod.soon .ic{background:#f3f4f6;filter:grayscale(.3)}
+.invite{margin-top:20px;padding:16px 18px;border:1px dashed #cfd6e0;border-radius:var(--r);background:#fbfcfe;color:var(--ink2);font-size:13.5px}
+.invite b{color:var(--ink)}
+
+/* ---------- Presupuestos module ---------- */
+.tabs{display:flex;gap:4px;background:#eef0f3;padding:4px;border-radius:12px;width:fit-content;margin:2px 0 20px}
+.tabs button{background:transparent;border:0;padding:8px 15px;border-radius:9px;font-weight:600;font-size:13.5px;color:var(--ink2)}
+.tabs button.sel{background:#fff;color:var(--ink);box-shadow:var(--sh)}
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.toolbar input.search{max-width:280px}
+.count{color:var(--mut);font-size:13px}
+.empty{padding:48px 24px;text-align:center;border:1px dashed var(--line);border-radius:var(--r);background:var(--card)}
+.empty .big{font-size:40px;margin-bottom:8px}
+.empty h3{margin:0 0 6px;font-size:17px}
+.empty p{margin:0 auto 16px;color:var(--mut);max-width:420px;font-size:14px}
+
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
+thead th{text-align:left;font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);padding:11px 14px;border-bottom:1px solid var(--line);background:#fbfcfd}
+tbody td{padding:11px 14px;border-bottom:1px solid #f1f2f4;font-size:13.5px;vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#fafbfc}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.b-base{background:#e7f6ec;color:#137a3a}
+.b-ind{background:#fdf1e3;color:#b5670f}
+.b-rec{background:#e8f0fe;color:#1a55c9}
+.b-val{background:#e3f4f1;color:#0d6a5c}
+.dot{width:7px;height:7px;border-radius:50%}
+.pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:#eef0f3;color:#4b5563}
+.pill.reforma{background:#eef4ff;color:#1f5fd0}
+.pill.on{background:#fdf1e3;color:#b5670f}
+.footnote{color:var(--mut);font-size:12px;margin-top:10px}
+@media(max-width:640px){.wrap{padding:18px 14px 50px}.hello h1{font-size:22px}}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login">
+  <div class="card login-box">
+    <div class="brand"><span class="dot">p.</span> Pracmatik</div>
+    <h1>Automatitzacions ABM</h1>
+    <p class="sub">Accedeix amb el teu correu del despatx.</p>
+    <label for="email">Correu</label>
+    <input id="email" type="email" autocomplete="email" placeholder="nom@abmnousespais.com">
+    <label for="pass">Contrasenya</label>
+    <input id="pass" type="password" autocomplete="current-password" placeholder="••••••••">
+    <button class="btn block" id="loginBtn">Entrar</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden">
+  <header class="top">
+    <div class="top-in">
+      <div class="brand"><span class="dot">p.</span></div>
+      <div class="crumb" id="crumb">Inici</div>
+      <div class="spacer"></div>
+      <div class="who"><span id="whoName"></span><div class="avatar" id="whoAv">A</div>
+      <button class="btn ghost" id="logoutBtn" style="padding:7px 12px;font-size:12.5px">Sortir</button></div>
+    </div>
+  </header>
+  <div class="wrap">
+
+    <!-- HOME -->
+    <section id="home">
+      <div class="hello">
+        <h1 id="helloH">Hola 👋</h1>
+        <p>Aquest és el vostre espai d'automatitzacions. Comencem pels <b>pressupostos</b>; anirem afegint mòduls.</p>
+      </div>
+      <div class="grid" id="mods"></div>
+      <div class="invite">💡 <b>Voleu activar un mòdul nou?</b> Actes de visita, panell d'obra, assistent… Els anem sumant a aquest mateix espai a mesura que us facin falta. Parleu-ne amb Pracmatik.</div>
+    </section>
+
+    <!-- PRESSUPOSTOS -->
+    <section id="presu" class="hidden">
+      <div class="tabs" id="presuTabs">
+        <button data-t="proj" class="sel">Projectes</button>
+        <button data-t="preus">Base de preus</button>
+        <button data-t="ind">Industrials</button>
+      </div>
+      <div id="pane-proj"></div>
+      <div id="pane-preus" class="hidden"></div>
+      <div id="pane-ind" class="hidden"></div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+const SUPA_URL="https://wjpvdigztxbhcmtsqaxz.supabase.co", SUPA_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqcHZkaWd6dHhiaGNtdHNxYXh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MDg3NDYsImV4cCI6MjA5ODQ4NDc0Nn0.9wt-iQj8aQ9MpzQX65jtQVU964Y9F_FJUJPb3vDD3Tw";
+const sb = supabase.createClient(SUPA_URL, SUPA_ANON);
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+let ME=null;
+const eur = n => (n==null||isNaN(n))?"—":Number(n).toLocaleString("ca-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---- Auth ---- */
+$("#loginBtn").addEventListener("click", login);
+$("#pass").addEventListener("keydown", e=>{if(e.key==="Enter")login();});
+async function login(){
+  const email=$("#email").value.trim(), password=$("#pass").value;
+  $("#loginErr").textContent="";
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){$("#loginErr").textContent="Correu o contrasenya incorrectes."; return;}
+  boot(data.user);
+}
+$("#logoutBtn").addEventListener("click", async()=>{await sb.auth.signOut(); location.reload();});
+sb.auth.getSession().then(({data})=>{ if(data.session) boot(data.session.user); });
+
+function boot(user){
+  ME=user;
+  const nom=(user.user_metadata&&user.user_metadata.nombre)||user.email.split("@")[0];
+  $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
+  $("#whoName").textContent=nom; $("#whoAv").textContent=(nom[0]||"A").toUpperCase();
+  $("#helloH").textContent="Hola, "+nom+" 👋";
+  renderMods(); showHome();
+}
+
+/* ---- Home / mòduls ---- */
+const MODULES=[
+  {id:"presu",on:true,ic:"📄",t:"Pressupostos",d:"Pugeu plànols i amidaments, valorem la base, preparem les peticions als industrials i genereu el pressupost."},
+  {id:"actes",on:false,ic:"📝",t:"Actes de visita d'obra",d:"Genereu l'acta de cada visita amb tasques i responsables, automàticament."},
+  {id:"obra",on:false,ic:"📊",t:"Panell d'obra",d:"Seguiment de cada obra de principi a fi, amb l'estat sempre a la vista."},
+  {id:"chat",on:false,ic:"💬",t:"Assistent",d:"Pregunteu pels vostres projectes, preus i industrials en llenguatge natural."},
+];
+function renderMods(){
+  $("#mods").innerHTML=MODULES.map(m=>`
+    <div class="mod ${m.on?'on':'soon'}" ${m.on?`data-open="${m.id}"`:''}>
+      <span class="tag ${m.on?'active':'soon'}">${m.on?'Actiu':'Pròximament'}</span>
+      <div class="ic">${m.ic}</div><h3>${m.t}</h3><p>${m.d}</p>
+    </div>`).join("");
+  $$('.mod.on').forEach(el=>el.addEventListener("click",()=>openModule(el.dataset.open)));
+}
+function showHome(){ $("#home").classList.remove("hidden"); $("#presu").classList.add("hidden"); $("#crumb").innerHTML="Inici"; }
+function openModule(id){ if(id==="presu"){ $("#home").classList.add("hidden"); $("#presu").classList.remove("hidden"); $("#crumb").innerHTML='Inici · <b>Pressupostos</b>'; loadProjectes(); } }
+$("#crumb").addEventListener("click", showHome);
+
+/* ---- Pressupostos: tabs ---- */
+$$('#presuTabs button').forEach(b=>b.addEventListener("click",()=>{
+  $$('#presuTabs button').forEach(x=>x.classList.remove("sel")); b.classList.add("sel");
+  const t=b.dataset.t;
+  $("#pane-proj").classList.toggle("hidden",t!=="proj");
+  $("#pane-preus").classList.toggle("hidden",t!=="preus");
+  $("#pane-ind").classList.toggle("hidden",t!=="ind");
+  if(t==="preus") loadPreus(); if(t==="ind") loadIndustrials();
+}));
+
+/* ---- Projectes (worklist) ---- */
+async function loadProjectes(){
+  const el=$("#pane-proj"); el.innerHTML='<div class="count">Carregant…</div>';
+  const {data,error}=await sb.from("proyectos").select("*").order("fecha",{ascending:false});
+  if(error){el.innerHTML='<div class="empty"><h3>No s\'han pogut carregar els projectes</h3></div>';return;}
+  if(!data.length){
+    el.innerHTML=`<div class="empty"><div class="big">📄</div>
+      <h3>Encara no hi ha cap pressupost</h3>
+      <p>Puja el <b>projecte executiu (plànols)</b> i l'<b>estat d'amidaments</b> d'una obra i el sistema en prepararà el pressupost: preus de base automàtics i les partides d'industrial marcades i llestes per demanar.</p>
+      <button class="btn" id="newProj">+ Nou pressupost</button></div>`;
+    $("#newProj").addEventListener("click",()=>alert("Aviat: pujada de plànols + amidaments. (Motor d'ingesta en construcció.)"));
+    return;
+  }
+  el.innerHTML=`<div class="toolbar"><button class="btn" id="newProj">+ Nou pressupost</button><span class="count">${data.length} projectes</span></div>
+   <table><thead><tr><th>Obra</th><th>Estat</th><th class="num">Partides</th><th>Data</th></tr></thead><tbody>
+   ${data.map(p=>`<tr><td><b>${esc(p.nombre||"—")}</b></td><td>${esc(p.estado||"")}</td><td class="num">—</td><td>${(p.fecha||"").slice(0,10)}</td></tr>`).join("")}
+   </tbody></table>`;
+  $("#newProj")&&$("#newProj").addEventListener("click",()=>alert("Aviat: pujada de plànols + amidaments."));
+}
+
+/* ---- Base de preus (dades reals) ---- */
+let PREUS=null;
+async function loadPreus(){
+  const el=$("#pane-preus");
+  if(!PREUS){ el.innerHTML='<div class="count">Carregant base de preus…</div>';
+    const {data}=await sb.from("precios_base").select("capitulo,partida,descripcion,unidad,precio_cliente,es_industrial,tipo").order("tipo").limit(2000);
+    PREUS=data||[]; }
+  const draw=(q="")=>{
+    const rows=PREUS.filter(r=>!q||(r.descripcion||"").toLowerCase().includes(q)||(r.capitulo||"").toLowerCase().includes(q));
+    el.querySelector("#preusBody").innerHTML=rows.slice(0,600).map(r=>`<tr>
+      <td><span class="pill ${r.tipo==='reforma'?'reforma':''}">${r.tipo==='reforma'?'Reforma':'Obra nova'}</span></td>
+      <td>${esc(r.descripcion)}</td><td>${esc(r.unidad||"")}</td>
+      <td class="num">${eur(r.precio_cliente)}</td>
+      <td>${r.es_industrial?'<span class="badge b-ind"><span class="dot" style="background:#b5670f"></span>A industrial</span>':'<span class="badge b-base"><span class="dot" style="background:#137a3a"></span>Base</span>'}</td>
+    </tr>`).join("");
+    el.querySelector("#preusCount").textContent=rows.length+" partides"+(rows.length>600?" (mostrant 600)":"");
+  };
+  el.innerHTML=`<div class="toolbar"><input class="search" id="preusQ" placeholder="Cerca partida o capítol…"><span class="count" id="preusCount"></span></div>
+   <table><thead><tr><th>Tipus</th><th>Descripció</th><th>Ud</th><th class="num">Preu client</th><th>Origen</th></tr></thead><tbody id="preusBody"></tbody></table>
+   <div class="footnote">Reforma = preu client directe. «A industrial» = el preu es demana a l'industrial en cada obra.</div>`;
+  $("#preusQ").addEventListener("input",e=>draw(e.target.value.toLowerCase())); draw();
+}
+
+/* ---- Industrials (dades reals) ---- */
+async function loadIndustrials(){
+  const el=$("#pane-ind"); el.innerHTML='<div class="count">Carregant industrials…</div>';
+  const {data}=await sb.from("industriales").select("nombre,oficio,email,telefono").order("oficio");
+  const rows=data||[];
+  el.innerHTML=`<div class="toolbar"><span class="count">${rows.length} contactes</span></div>
+   <table><thead><tr><th>Gremi</th><th>Contacte</th><th>Correu</th><th>Telèfon</th></tr></thead><tbody>
+   ${rows.map(r=>`<tr><td><span class="pill">${esc(r.oficio||"—")}</span></td><td><b>${esc(r.nombre||"—")}</b></td>
+     <td>${r.email?`<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>`:"—"}</td><td>${esc(r.telefono||"—")}</td></tr>`).join("")}
+   </tbody></table>`;
+}
+</script>
+</body>
+</html>
