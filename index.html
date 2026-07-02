@@ -127,6 +127,7 @@ td.cap{color:var(--mut);font-size:12px;font-weight:600;white-space:nowrap}
 .b-val{background:#e3f4f1;color:#0d6a5c}
 .b-gray{background:#f1f2f4;color:#6b7280}
 .b-just{background:#f3e8ff;color:#7c3aed}
+.b-prop{background:#e0e7ff;color:#4338ca}
 .dot2{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
 .pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:#eef0f3;color:#4b5563;white-space:nowrap}
 .pill.reforma{background:#eef4ff;color:#1f5fd0}
@@ -426,9 +427,10 @@ const EST_PROJ={
   rebut:["Rebut · en preparació","b-ind"], en_valoracio:["En valoració","b-ind"],
   borrador:["Esborrany","b-gray"], pendiente_industriales:["Pendent d'industrials","b-ind"],
   per_validar:["Per validar","b-rec"], validado:["Validat","b-val"], enviado:["Enviat","b-base"],
+  necessita_revisio:["Necessita revisió","b-just"],
 };
 const EST_LIN={
-  auto:["Preu base","b-base"], pendiente_industrial:["Pendent industrial","b-ind"],
+  auto:["Preu base","b-base"], proposta:["Proposta — revisar","b-prop"], pendiente_industrial:["Pendent industrial","b-ind"],
   precio_recibido:["Preu rebut","b-rec"], a_justificar:["A justificar","b-just"], validado:["Validat","b-val"],
 };
 const badge=(map,e)=>{ const [t,c]=map[e]||[e||"—","b-gray"]; return `<span class="badge ${c}"><span class="dot2"></span>${esc(t)}</span>`; };
@@ -533,7 +535,8 @@ function renderDetall(){
   const nVal=lin.filter(l=>l.estado==="validado").length,
         nInd=lin.filter(l=>l.estado==="pendiente_industrial").length,
         nRec=lin.filter(l=>l.estado==="precio_recibido").length,
-        nJus=lin.filter(l=>l.estado==="a_justificar").length;
+        nJus=lin.filter(l=>l.estado==="a_justificar").length,
+        nProp=lin.filter(l=>l.estado==="proposta").length;
   const tot=lin.reduce((s,l)=>{const v=lineImport(l);return s+(v||0);},0);
   const complet=lin.length>0&&nVal===lin.length;
   const isDemo=(p.nombre||"").startsWith("EXEMPLE");
@@ -547,6 +550,7 @@ function renderDetall(){
    <div class="stats">
      <div class="stat"><div class="v">${eur(tot)}</div><div class="k">Total parcial (sense IVA)</div></div>
      <div class="stat"><div class="v">${nVal} / ${lin.length}</div><div class="k">Partides validades</div></div>
+     ${nProp?`<div class="stat"><div class="v">${nProp}</div><div class="k">Propostes per revisar</div></div>`:""}
      ${nInd?`<div class="stat"><div class="v">${nInd}</div><div class="k">Pendents d'industrial</div></div>`:""}
      ${nRec?`<div class="stat"><div class="v">${nRec}</div><div class="k">Preus rebuts (falta marge)</div></div>`:""}
      ${nJus?`<div class="stat"><div class="v">${nJus}</div><div class="k">A justificar</div></div>`:""}
@@ -563,8 +567,28 @@ function renderDetall(){
   if(lin.length){
     $$("[data-val]",el).forEach(b=>b.addEventListener("click",()=>validarLinia(b.dataset.val)));
     $$("td.edit",el).forEach(td=>td.addEventListener("click",()=>editCell(td)));
-    if(complet) $("#dlBtn").addEventListener("click",exportCSV);
+    if(complet) $("#dlBtn").addEventListener("click",exportExcel);
   }
+}
+/* Excel real: la funció del núvol omple el document original amb els preus validats */
+async function exportExcel(){
+  const btn=$("#dlBtn"); if(!btn||btn.dataset.busy) return;
+  btn.dataset.busy="1"; const old=btn.innerHTML; btn.innerHTML="Generant l'Excel…";
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(SUPA_URL+"/functions/v1/genera-excel",{method:"POST",
+      headers:{Authorization:"Bearer "+session.access_token,apikey:SUPA_ANON,"Content-Type":"application/json"},
+      body:JSON.stringify({proyecto_id:CUR.p.id})});
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error||"generació");
+    const {data,error}=await sb.storage.from("projectes").download(j.path);
+    if(error) throw error;
+    const a=document.createElement("a"); a.href=URL.createObjectURL(data);
+    a.download=j.path.split("/").pop(); a.click(); URL.revokeObjectURL(a.href);
+    toast("Pressupost Excel descarregat ✓");
+  }catch(e){
+    exportCSV(); toast("Excel original no disponible — descarregat CSV provisional.");
+  }finally{ delete btn.dataset.busy; btn.innerHTML=old; }
 }
 function rowLin(l,i){
   const imp=lineImport(l);
@@ -581,7 +605,7 @@ function rowLin(l,i){
     <td class="num ${canEditQty?'edit':''}" ${canEditQty?`data-f="medida" data-id="${esc(l.id)}" title="Clica per editar"`:""}>${l.medida!=null?Number(l.medida).toLocaleString("ca-ES"):"—"}</td>
     ${priceCell}
     <td class="num"><b>${eur(imp)}</b></td>
-    <td>${badge(EST_LIN,l.estado)}</td>
+    <td>${badge(EST_LIN,l.estado)}${l.gremi_sugerido?`<div class="cap" style="margin-top:3px">→ ${esc(l.gremi_sugerido)}</div>`:""}</td>
     <td>${l.estado!=="validado"&&l.estado!=="pendiente_industrial"?`<button class="vbtn" data-val="${esc(l.id)}">✓ Validar</button>`:""}</td>
   </tr>`;
 }
