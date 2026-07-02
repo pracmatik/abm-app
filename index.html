@@ -3,10 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ABM Nous Espais · Automatitzacions</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="Espai privat d'automatitzacions d'ABM Nous Espais">
+<meta name="theme-color" content="#111827">
+<meta property="og:title" content="Portal ABM Nous Espais">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; connect-src https://wjpvdigztxbhcmtsqaxz.supabase.co; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; base-uri 'none'; object-src 'none'; form-action 'none'">
+<title>ABM Nous Espais · Espai d'automatitzacions</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%23111827'/%3E%3Ctext%20x='32'%20y='45'%20font-family='Arial'%20font-size='34'%20font-weight='800'%20fill='white'%20text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.min.js" integrity="sha384-DjOvX/sJLsmbMrw4wTvf6l3kiGBjdxyOO6X2MTFwOOXGkjN/mE08BoDzrpaaIjil" crossorigin="anonymous"></script>
 <style>
 :root{
   --ink:#111827; --ink2:#374151; --mut:#6b7280; --line:#e7e9ee; --bg:#f6f7f9; --card:#ffffff;
@@ -19,37 +25,54 @@ body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--i
 button{font-family:inherit;cursor:pointer}
 .hidden{display:none!important}
 a{color:var(--acc);text-decoration:none}
+svg.ic{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:-5px}
+svg.ic.s{width:16px;height:16px;vertical-align:-3px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 
 /* ---------- Login ---------- */
-#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+#login{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px;flex-direction:column;gap:18px;
   background:radial-gradient(1200px 600px at 50% -10%, #eef2f7, var(--bg))}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sh)}
 .login-box{width:100%;max-width:400px;padding:34px 30px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.3px}
-.brand .dot{width:30px;height:30px;border-radius:9px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:800}
-.login-box h1{font-size:20px;margin:22px 0 4px;letter-spacing:-.4px}
-.login-box p.sub{color:var(--mut);margin:0 0 22px;font-size:13.5px}
+.brand .dot{width:32px;height:32px;border-radius:9px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:800;flex:none}
+.login-box h1{font-size:21px;margin:20px 0 4px;letter-spacing:-.4px}
+.login-box p.sub{color:var(--mut);margin:0 0 20px;font-size:13.5px}
 label{display:block;font-size:12.5px;font-weight:600;color:var(--ink2);margin:14px 0 6px}
-input,select{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;background:#fff;outline:none;transition:border .15s,box-shadow .15s}
-input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(31,111,235,.12)}
-.btn{background:var(--acc);color:#fff;border:0;padding:12px 16px;border-radius:10px;font-weight:600;font-size:14px;transition:background .15s,transform .05s}
+input,select,textarea{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;background:#fff;outline:none;transition:border .15s,box-shadow .15s;color:var(--ink)}
+input:focus,select:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(31,111,235,.12)}
+.pwd-wrap{position:relative}
+.pwd-wrap input{padding-right:46px}
+.pwd-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--mut);padding:8px;border-radius:8px}
+.pwd-eye:hover{color:var(--ink);background:#f3f4f6}
+.btn{background:var(--acc);color:#fff;border:0;padding:12px 16px;border-radius:10px;font-weight:600;font-size:14px;transition:background .15s,transform .05s,opacity .15s;display:inline-flex;align-items:center;gap:8px;justify-content:center}
 .btn:hover{background:var(--acc-d)} .btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
 .btn.block{width:100%;margin-top:20px}
 .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
 .btn.ghost:hover{background:#f3f4f6}
+.btn.sm{padding:7px 12px;font-size:12.5px;border-radius:8px}
 .err{color:#b91c1c;font-size:13px;margin-top:12px;min-height:16px}
+.hint{color:var(--mut);font-size:12.5px;margin-top:14px;text-align:center}
+.hint a{cursor:pointer}
+.powered{color:#9ca3af;font-size:12px}
 
 /* ---------- App shell ---------- */
 #app{min-height:100vh}
 header.top{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-.top-in{max-width:1120px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:16px}
-.top .brand{font-size:16px}
+.top-in{max-width:1160px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:14px}
+.top .brand{font-size:15px}
 .crumb{color:var(--mut);font-size:13.5px;font-weight:600}
 .crumb b{color:var(--ink)}
+.crumb a{color:var(--mut);cursor:pointer}
+.crumb a:hover{color:var(--ink);text-decoration:underline}
 .spacer{flex:1}
-.who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink2)}
-.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1f6feb,#0ea5e9);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
-.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 60px}
+.who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);position:relative}
+.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1f6feb,#0ea5e9);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;border:0}
+.menu{position:absolute;top:44px;right:0;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh);min-width:190px;padding:6px;z-index:30}
+.menu button{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;padding:10px 12px;border-radius:8px;font-size:13.5px;color:var(--ink2);text-align:left}
+.menu button:hover{background:#f3f4f6;color:var(--ink)}
+.wrap{max-width:1160px;margin:0 auto;padding:26px 22px 70px}
 
 /* ---------- Home / mòduls ---------- */
 .hello{margin:6px 0 22px}
@@ -59,46 +82,104 @@ header.top{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.85);bac
 .mod{padding:20px;border-radius:var(--r);border:1px solid var(--line);background:var(--card);box-shadow:var(--sh);position:relative;transition:transform .15s,box-shadow .15s}
 .mod.on{cursor:pointer}
 .mod.on:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(16,24,40,.10)}
-.mod .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:#eef4ff;margin-bottom:14px}
+.mod .icbox{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#eef4ff;color:var(--acc);margin-bottom:14px}
 .mod h3{margin:0 0 4px;font-size:16px;letter-spacing:-.2px}
 .mod p{margin:0;color:var(--mut);font-size:13px;line-height:1.45}
 .tag{position:absolute;top:16px;right:16px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px}
 .tag.active{background:#e7f6ec;color:#137a3a}
 .tag.soon{background:#f1f2f4;color:#6b7280}
 .mod.soon{opacity:.72}
-.mod.soon .ic{background:#f3f4f6;filter:grayscale(.3)}
-.invite{margin-top:20px;padding:16px 18px;border:1px dashed #cfd6e0;border-radius:var(--r);background:#fbfcfe;color:var(--ink2);font-size:13.5px}
+.mod.soon .icbox{background:#f3f4f6;color:#9ca3af}
+.invite{margin-top:20px;padding:16px 18px;border:1px dashed #cfd6e0;border-radius:var(--r);background:#fbfcfe;color:var(--ink2);font-size:13.5px;display:flex;gap:10px;align-items:flex-start}
 .invite b{color:var(--ink)}
+.invite .icbox{width:34px;height:34px;border-radius:9px;background:#eef4ff;color:var(--acc);display:grid;place-items:center;flex:none}
 
-/* ---------- Presupuestos module ---------- */
-.tabs{display:flex;gap:4px;background:#eef0f3;padding:4px;border-radius:12px;width:fit-content;margin:2px 0 20px}
-.tabs button{background:transparent;border:0;padding:8px 15px;border-radius:9px;font-weight:600;font-size:13.5px;color:var(--ink2)}
+/* ---------- Tabs / toolbar / taules ---------- */
+.tabs{display:flex;gap:4px;background:#eef0f3;padding:4px;border-radius:12px;width:fit-content;margin:2px 0 20px;max-width:100%;overflow-x:auto}
+.tabs button{background:transparent;border:0;padding:8px 15px;border-radius:9px;font-weight:600;font-size:13.5px;color:var(--ink2);white-space:nowrap}
 .tabs button.sel{background:#fff;color:var(--ink);box-shadow:var(--sh)}
 .toolbar{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-.toolbar input.search{max-width:280px}
+.search-wrap{position:relative;max-width:300px;flex:1;min-width:190px}
+.search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--mut)}
+.search-wrap input{padding-left:36px}
 .count{color:var(--mut);font-size:13px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:#fff;color:var(--ink2);font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:20px;transition:all .12s}
+.chip:hover{border-color:#c7cdd6}
+.chip.sel{background:var(--ink);border-color:var(--ink);color:#fff}
 .empty{padding:48px 24px;text-align:center;border:1px dashed var(--line);border-radius:var(--r);background:var(--card)}
-.empty .big{font-size:40px;margin-bottom:8px}
+.empty .icbox{width:52px;height:52px;border-radius:14px;background:#eef4ff;color:var(--acc);display:grid;place-items:center;margin:0 auto 14px}
 .empty h3{margin:0 0 6px;font-size:17px}
-.empty p{margin:0 auto 16px;color:var(--mut);max-width:420px;font-size:14px}
-
-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
-thead th{text-align:left;font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);padding:11px 14px;border-bottom:1px solid var(--line);background:#fbfcfd}
+.empty p{margin:0 auto 16px;color:var(--mut);max-width:440px;font-size:14px;line-height:1.5}
+.tbl{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r);box-shadow:var(--sh);border:1px solid var(--line);background:var(--card)}
+table{width:100%;border-collapse:collapse;min-width:620px}
+thead th{text-align:left;font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);padding:11px 14px;border-bottom:1px solid var(--line);background:#fbfcfd;white-space:nowrap}
 tbody td{padding:11px 14px;border-bottom:1px solid #f1f2f4;font-size:13.5px;vertical-align:top}
 tbody tr:last-child td{border-bottom:0}
-tbody tr:hover{background:#fafbfc}
-td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.click{cursor:pointer}
+tr.click:hover{background:#fafbfc}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.cap{color:var(--mut);font-size:12px;font-weight:600;white-space:nowrap}
 .badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
 .b-base{background:#e7f6ec;color:#137a3a}
 .b-ind{background:#fdf1e3;color:#b5670f}
 .b-rec{background:#e8f0fe;color:#1a55c9}
 .b-val{background:#e3f4f1;color:#0d6a5c}
-.dot{width:7px;height:7px;border-radius:50%}
-.pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:#eef0f3;color:#4b5563}
+.b-gray{background:#f1f2f4;color:#6b7280}
+.b-just{background:#f3e8ff;color:#7c3aed}
+.dot2{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:#eef0f3;color:#4b5563;white-space:nowrap}
 .pill.reforma{background:#eef4ff;color:#1f5fd0}
-.pill.on{background:#fdf1e3;color:#b5670f}
-.footnote{color:var(--mut);font-size:12px;margin-top:10px}
-@media(max-width:640px){.wrap{padding:18px 14px 50px}.hello h1{font-size:22px}}
+.footnote{color:var(--mut);font-size:12px;margin-top:10px;line-height:1.5}
+.muted{color:var(--mut)}
+.ref-price{color:#9ca3af;font-style:italic}
+
+/* ---------- Detall projecte ---------- */
+.back{display:inline-flex;align-items:center;gap:5px;color:var(--mut);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px;background:none;border:0;padding:4px 8px 4px 0;border-radius:8px}
+.back:hover{color:var(--ink)}
+.dhead{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+.dhead h2{margin:0;font-size:22px;letter-spacing:-.5px}
+.dmeta{color:var(--mut);font-size:13px;margin:4px 0 16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 16px;box-shadow:var(--sh)}
+.stat .v{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.stat .k{font-size:11.5px;color:var(--mut);font-weight:600}
+td.edit{cursor:pointer;border-bottom:1px dashed transparent}
+td.edit:hover{background:#f0f6ff}
+td.edit input{padding:5px 8px;font-size:13px;width:90px;border-radius:7px}
+.vbtn{background:#fff;border:1px solid var(--line);color:var(--done);font-weight:700;font-size:12px;padding:5px 10px;border-radius:8px;white-space:nowrap}
+.vbtn:hover{background:#e3f4f1;border-color:#b3ddd6}
+.ai-note{margin-top:14px;padding:12px 16px;border-radius:12px;background:#fbfcfe;border:1px solid var(--line);color:var(--mut);font-size:12.5px;line-height:1.55;display:flex;gap:10px;align-items:flex-start}
+.demo-banner{margin-bottom:16px;padding:11px 16px;border-radius:12px;background:#eef4ff;border:1px solid #d3e2fd;color:#1a55c9;font-size:13px;font-weight:600}
+
+/* ---------- Peticions ---------- */
+.pet{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:18px 20px;margin-bottom:14px}
+.pet-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.pet-h b{font-size:14.5px}
+.pet .meta{color:var(--mut);font-size:12.5px;margin-bottom:10px}
+.pet pre{white-space:pre-wrap;font-family:inherit;font-size:13px;color:var(--ink2);background:#fbfcfd;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0;line-height:1.55}
+.pet .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pet select{max-width:280px;padding:8px 10px;font-size:13px}
+
+/* ---------- Modal / overlay ---------- */
+.overlay{position:fixed;inset:0;background:rgba(17,24,39,.45);backdrop-filter:blur(3px);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{width:100%;max-width:460px;background:#fff;border-radius:18px;box-shadow:0 20px 60px rgba(16,24,40,.25);padding:26px 26px 24px;max-height:92vh;overflow-y:auto}
+.modal h3{margin:0 0 4px;font-size:18px;letter-spacing:-.3px}
+.modal p.sub{color:var(--mut);font-size:13px;margin:0 0 14px;line-height:1.5}
+.modal .row{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+.drop{margin-top:8px;border:2px dashed #cfd6e0;border-radius:12px;padding:22px;text-align:center;color:var(--mut);font-size:13px;cursor:pointer;transition:all .15s;background:#fbfcfe}
+.drop:hover,.drop.over{border-color:var(--acc);background:#f0f6ff;color:var(--acc)}
+.filelist{margin-top:10px;font-size:12.5px;color:var(--ink2)}
+.filelist div{display:flex;justify-content:space-between;gap:10px;padding:5px 2px;border-bottom:1px dashed #eef0f3}
+
+/* ---------- Toast / skeleton ---------- */
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;font-size:13.5px;font-weight:600;padding:11px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(16,24,40,.3);opacity:0;pointer-events:none;transition:all .25s;z-index:99;max-width:88vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.skel{border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:var(--card)}
+.skel .row{height:44px;border-bottom:1px solid #f1f2f4;position:relative;overflow:hidden}
+.skel .row::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,#f1f4f8,transparent);animation:shim 1.2s infinite}
+@keyframes shim{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+@media(max-width:640px){.wrap{padding:18px 14px 60px}.hello h1{font-size:22px}.dhead h2{font-size:19px}.top-in{padding:10px 14px}}
 </style>
 </head>
 <body>
@@ -106,27 +187,38 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 <!-- ============ LOGIN ============ -->
 <div id="login">
   <div class="card login-box">
-    <div class="brand"><span class="dot">p.</span> Pracmatik</div>
-    <h1>Automatitzacions ABM</h1>
+    <div class="brand"><span class="dot">A</span> ABM Nous Espais</div>
+    <h1>Espai d'automatitzacions</h1>
     <p class="sub">Accedeix amb el teu correu del despatx.</p>
     <label for="email">Correu</label>
-    <input id="email" type="email" autocomplete="email" placeholder="nom@abmnousespais.com">
+    <input id="email" type="email" autocomplete="email" placeholder="el-teu-correu">
     <label for="pass">Contrasenya</label>
-    <input id="pass" type="password" autocomplete="current-password" placeholder="••••••••">
+    <div class="pwd-wrap">
+      <input id="pass" type="password" autocomplete="current-password" placeholder="••••••••">
+      <button class="pwd-eye" id="eyeBtn" type="button" aria-label="Mostra la contrasenya"></button>
+    </div>
     <button class="btn block" id="loginBtn">Entrar</button>
-    <div class="err" id="loginErr"></div>
+    <div class="err" id="loginErr" role="alert"></div>
+    <div class="hint"><a id="forgot">Has oblidat la contrasenya?</a></div>
   </div>
+  <div class="powered">amb tecnologia <b>Pracmatik</b></div>
 </div>
 
 <!-- ============ APP ============ -->
 <div id="app" class="hidden">
   <header class="top">
     <div class="top-in">
-      <div class="brand"><span class="dot">p.</span></div>
+      <div class="brand"><span class="dot">A</span> ABM</div>
       <div class="crumb" id="crumb">Inici</div>
       <div class="spacer"></div>
-      <div class="who"><span id="whoName"></span><div class="avatar" id="whoAv">A</div>
-      <button class="btn ghost" id="logoutBtn" style="padding:7px 12px;font-size:12.5px">Sortir</button></div>
+      <div class="who">
+        <span id="whoName"></span>
+        <button class="avatar" id="whoAv" aria-label="Menú d'usuari">A</button>
+        <div class="menu hidden" id="userMenu">
+          <button id="chgPwd"></button>
+          <button id="logoutBtn"></button>
+        </div>
+      </div>
     </div>
   </header>
   <div class="wrap">
@@ -134,140 +226,548 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     <!-- HOME -->
     <section id="home">
       <div class="hello">
-        <h1 id="helloH">Hola 👋</h1>
+        <h1 id="helloH">Hola</h1>
         <p>Aquest és el vostre espai d'automatitzacions. Comencem pels <b>pressupostos</b>; anirem afegint mòduls.</p>
       </div>
       <div class="grid" id="mods"></div>
-      <div class="invite">💡 <b>Voleu activar un mòdul nou?</b> Actes de visita, panell d'obra, assistent… Els anem sumant a aquest mateix espai a mesura que us facin falta. Parleu-ne amb Pracmatik.</div>
+      <div class="invite"><span class="icbox" id="inviteIc"></span><span><b>Voleu activar un mòdul nou?</b> Actes de visita, panell d'obra, assistent… Els anem sumant a aquest mateix espai a mesura que us facin falta. Parleu-ne amb Pracmatik.</span></div>
     </section>
 
     <!-- PRESSUPOSTOS -->
     <section id="presu" class="hidden">
       <div class="tabs" id="presuTabs">
         <button data-t="proj" class="sel">Projectes</button>
+        <button data-t="pet">Peticions</button>
         <button data-t="preus">Base de preus</button>
         <button data-t="ind">Industrials</button>
       </div>
       <div id="pane-proj"></div>
+      <div id="pane-pet" class="hidden"></div>
       <div id="pane-preus" class="hidden"></div>
       <div id="pane-ind" class="hidden"></div>
     </section>
 
+    <!-- DETALL PROJECTE -->
+    <section id="detall" class="hidden"></section>
+
   </div>
 </div>
 
-<script>
-const SUPA_URL="https://wjpvdigztxbhcmtsqaxz.supabase.co", SUPA_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqcHZkaWd6dHhiaGNtdHNxYXh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MDg3NDYsImV4cCI6MjA5ODQ4NDc0Nn0.9wt-iQj8aQ9MpzQX65jtQVU964Y9F_FJUJPb3vDD3Tw";
-const sb = supabase.createClient(SUPA_URL, SUPA_ANON);
-const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
-let ME=null;
-const eur = n => (n==null||isNaN(n))?"—":Number(n).toLocaleString("ca-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
-const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+<div id="toast" aria-live="polite"></div>
 
-/* ---- Auth ---- */
+<script>
+/* ================= Icones (SVG inline, estil Lucide) ================= */
+const IC={
+ file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+ clip:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+ dash:'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+ chat:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+ search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+ up:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m15 15-3-3-3 3"/>',
+ eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+ eyeoff:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/><line x1="3" y1="21" x2="21" y2="3"/>',
+ mail:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+ copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',
+ dl:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+ left:'<path d="m15 18-6-6 6-6"/>',
+ spark:'<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
+ phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>',
+ lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+ out:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+ info:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+};
+const ic=(n,s)=>`<svg class="ic${s?' s':''}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||''}</svg>`;
+
+/* ================= Utils ================= */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc = s => (s==null?"":String(s)).replace(/[&<>"'\/]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#47;'}[c]));
+const eur = n => (n==null||isNaN(n))?"—":Number(n).toLocaleString("ca-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+const fmtDate = d => d?new Date(d).toLocaleDateString("ca-ES",{day:"numeric",month:"short",year:"numeric"}):"—";
+let toastT=null;
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),3500); }
+const skel = n=>`<div class="skel">${'<div class="row"></div>'.repeat(n||5)}</div>`;
+function errBox(el,msg,retry){
+  el.innerHTML=`<div class="empty"><div class="icbox">${ic('info')}</div><h3>${esc(msg||"No s'ha pogut carregar")}</h3>
+   <p>Comprova la connexió i torna-ho a provar. Si persisteix, avisa Pracmatik.</p><button class="btn" id="retryBtn">Torna-ho a provar</button></div>`;
+  $("#retryBtn",el).addEventListener("click",retry);
+}
+
+/* ================= Supabase ================= */
+const SUPA_URL="https://wjpvdigztxbhcmtsqaxz.supabase.co", SUPA_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqcHZkaWd6dHhiaGNtdHNxYXh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MDg3NDYsImV4cCI6MjA5ODQ4NDc0Nn0.9wt-iQj8aQ9MpzQX65jtQVU964Y9F_FJUJPb3vDD3Tw";
+if(typeof supabase==="undefined"){
+  document.addEventListener("DOMContentLoaded",()=>{ $("#loginErr").textContent="No s'ha pogut carregar l'aplicació. Revisa la connexió i recarrega la pàgina."; });
+  throw new Error("SDK no disponible");
+}
+const sb = supabase.createClient(SUPA_URL, SUPA_ANON);
+let ME=null, booted=false, recoveryMode=false;
+
+/* ================= Auth ================= */
+$("#eyeBtn").innerHTML=ic('eye','s');
+$("#eyeBtn").addEventListener("click",()=>{ const p=$("#pass"); const show=p.type==="password"; p.type=show?"text":"password"; $("#eyeBtn").innerHTML=ic(show?'eyeoff':'eye','s'); });
 $("#loginBtn").addEventListener("click", login);
 $("#pass").addEventListener("keydown", e=>{if(e.key==="Enter")login();});
+$("#email").addEventListener("keydown", e=>{if(e.key==="Enter")$("#pass").focus();});
+
 async function login(){
+  const btn=$("#loginBtn"); if(btn.disabled) return;
   const email=$("#email").value.trim(), password=$("#pass").value;
   $("#loginErr").textContent="";
-  const {data,error}=await sb.auth.signInWithPassword({email,password});
-  if(error){$("#loginErr").textContent="Correu o contrasenya incorrectes."; return;}
-  boot(data.user);
+  if(!email||!password){ $("#loginErr").textContent="Escriu el correu i la contrasenya."; return; }
+  btn.disabled=true; btn.textContent="Entrant…";
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email,password});
+    if(error){
+      const m=(error.message||"").toLowerCase();
+      $("#loginErr").textContent =
+        (m.includes("fetch")||error.status>=500) ? "No hi ha connexió amb el servidor. Torna-ho a provar." :
+        (error.status===429) ? "Massa intents seguits. Espera un minut i torna-ho a provar." :
+        "Correu o contrasenya incorrectes.";
+      return;
+    }
+    boot(data.user);
+  } finally { btn.disabled=false; btn.textContent="Entrar"; }
 }
-$("#logoutBtn").addEventListener("click", async()=>{await sb.auth.signOut(); location.reload();});
+
+$("#forgot").addEventListener("click", async()=>{
+  const email=$("#email").value.trim();
+  if(!email){ $("#loginErr").textContent="Escriu primer el teu correu a la casella de dalt."; return; }
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  $("#loginErr").textContent="";
+  toast(error?"No s'ha pogut enviar el correu. Torna-ho a provar en uns minuts.":"T'hem enviat un correu per restablir la contrasenya. Revisa també el correu brossa.");
+});
+
+sb.auth.onAuthStateChange((event,session)=>{
+  if(event==="PASSWORD_RECOVERY"){ recoveryMode=true; if(booted) openPwdModal(false); else if(session) boot(session.user); return; }
+  if(!session && booted){
+    booted=false; ME=null;
+    $("#app").classList.add("hidden"); $("#login").classList.remove("hidden");
+    $("#loginErr").textContent="La sessió ha caducat. Torna a entrar.";
+  }
+});
 sb.auth.getSession().then(({data})=>{ if(data.session) boot(data.session.user); });
 
+$("#logoutBtn").addEventListener("click", async()=>{await sb.auth.signOut(); location.reload();});
+
 function boot(user){
-  ME=user;
+  if(booted) return; booted=true; ME=user;
   const nom=(user.user_metadata&&user.user_metadata.nombre)||user.email.split("@")[0];
   $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
   $("#whoName").textContent=nom; $("#whoAv").textContent=(nom[0]||"A").toUpperCase();
-  $("#helloH").textContent="Hola, "+nom+" 👋";
+  $("#helloH").textContent="Hola, "+nom;
+  $("#chgPwd").innerHTML=ic('lock','s')+" Canviar contrasenya";
+  $("#logoutBtn").innerHTML=ic('out','s')+" Sortir";
+  $("#inviteIc").innerHTML=ic('spark','s');
   renderMods(); showHome();
+  if(recoveryMode || (user.user_metadata&&user.user_metadata.temp_pwd)) openPwdModal(!!(user.user_metadata&&user.user_metadata.temp_pwd));
 }
 
-/* ---- Home / mòduls ---- */
+/* menú usuari */
+$("#whoAv").addEventListener("click",e=>{e.stopPropagation(); $("#userMenu").classList.toggle("hidden");});
+document.addEventListener("click",()=>$("#userMenu").classList.add("hidden"));
+$("#chgPwd").addEventListener("click",()=>openPwdModal(false));
+
+/* canvi de contrasenya */
+function openPwdModal(forced){
+  const ov=document.createElement("div"); ov.className="overlay";
+  ov.innerHTML=`<div class="modal">
+    <h3>${forced?"Crea la teva contrasenya":"Canviar contrasenya"}</h3>
+    <p class="sub">${forced?"Per seguretat, abans de començar tria una contrasenya nova només teva (mínim 10 caràcters).":"Tria una contrasenya nova (mínim 10 caràcters)."}</p>
+    <label>Contrasenya nova</label><input type="password" id="np1" autocomplete="new-password">
+    <label>Repeteix-la</label><input type="password" id="np2" autocomplete="new-password">
+    <div class="err" id="npErr"></div>
+    <div class="row">${forced?"":'<button class="btn ghost" id="npCancel">Cancel·la</button>'}<button class="btn" id="npSave">Desa</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  if(!forced){ $("#npCancel",ov).addEventListener("click",()=>ov.remove()); ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();}); }
+  $("#npSave",ov).addEventListener("click", async()=>{
+    const p1=$("#np1",ov).value, p2=$("#np2",ov).value, err=$("#npErr",ov), btn=$("#npSave",ov);
+    if(p1.length<10){err.textContent="Mínim 10 caràcters.";return;}
+    if(p1!==p2){err.textContent="Les dues contrasenyes no coincideixen.";return;}
+    btn.disabled=true; btn.textContent="Desant…";
+    const {error}=await sb.auth.updateUser({password:p1, data:{temp_pwd:false}});
+    btn.disabled=false; btn.textContent="Desa";
+    if(error){ err.textContent = (error.message||"").includes("different") ? "Ha de ser diferent de l'actual." : "No s'ha pogut desar. Torna-ho a provar."; return; }
+    recoveryMode=false; ov.remove(); toast("Contrasenya actualitzada ✓");
+  });
+}
+
+/* ================= Home / mòduls ================= */
 const MODULES=[
-  {id:"presu",on:true,ic:"📄",t:"Pressupostos",d:"Pugeu plànols i amidaments, valorem la base, preparem les peticions als industrials i genereu el pressupost."},
-  {id:"actes",on:false,ic:"📝",t:"Actes de visita d'obra",d:"Genereu l'acta de cada visita amb tasques i responsables, automàticament."},
-  {id:"obra",on:false,ic:"📊",t:"Panell d'obra",d:"Seguiment de cada obra de principi a fi, amb l'estat sempre a la vista."},
-  {id:"chat",on:false,ic:"💬",t:"Assistent",d:"Pregunteu pels vostres projectes, preus i industrials en llenguatge natural."},
+  {id:"presu",on:true,icn:"file",t:"Pressupostos",d:"Pugeu plànols i amidaments, valorem la base, preparem les peticions als industrials i valideu el pressupost."},
+  {id:"actes",on:false,icn:"clip",t:"Actes de visita d'obra",d:"Genereu l'acta de cada visita amb tasques i responsables, automàticament."},
+  {id:"obra",on:false,icn:"dash",t:"Panell d'obra",d:"Seguiment de cada obra de principi a fi, amb l'estat sempre a la vista."},
+  {id:"chat",on:false,icn:"chat",t:"Assistent",d:"Pregunteu pels vostres projectes, preus i industrials en llenguatge natural."},
 ];
 function renderMods(){
   $("#mods").innerHTML=MODULES.map(m=>`
-    <div class="mod ${m.on?'on':'soon'}" ${m.on?`data-open="${m.id}"`:''}>
+    <div class="mod ${m.on?'on':'soon'}" ${m.on?`data-open="${m.id}" role="button" tabindex="0"`:''}>
       <span class="tag ${m.on?'active':'soon'}">${m.on?'Actiu':'Pròximament'}</span>
-      <div class="ic">${m.ic}</div><h3>${m.t}</h3><p>${m.d}</p>
+      <div class="icbox">${ic(m.icn)}</div><h3>${m.t}</h3><p>${m.d}</p>
     </div>`).join("");
-  $$('.mod.on').forEach(el=>el.addEventListener("click",()=>openModule(el.dataset.open)));
+  $$('.mod.on').forEach(el=>{ el.addEventListener("click",()=>openModule(el.dataset.open));
+    el.addEventListener("keydown",e=>{if(e.key==="Enter")openModule(el.dataset.open);}); });
 }
-function showHome(){ $("#home").classList.remove("hidden"); $("#presu").classList.add("hidden"); $("#crumb").innerHTML="Inici"; }
-function openModule(id){ if(id==="presu"){ $("#home").classList.add("hidden"); $("#presu").classList.remove("hidden"); $("#crumb").innerHTML='Inici · <b>Pressupostos</b>'; loadProjectes(); } }
-$("#crumb").addEventListener("click", showHome);
+function crumb(html){ $("#crumb").innerHTML=html; }
+function showHome(){ $("#home").classList.remove("hidden"); $("#presu").classList.add("hidden"); $("#detall").classList.add("hidden"); crumb("Inici"); }
+function showPresu(){ $("#home").classList.add("hidden"); $("#presu").classList.remove("hidden"); $("#detall").classList.add("hidden"); crumb('<a id="cHome">Inici</a> · <b>Pressupostos</b>'); $("#cHome").addEventListener("click",showHome); }
+function openModule(id){ if(id==="presu"){ showPresu(); loadProjectes(); } }
 
-/* ---- Pressupostos: tabs ---- */
+/* ================= Tabs ================= */
 $$('#presuTabs button').forEach(b=>b.addEventListener("click",()=>{
   $$('#presuTabs button').forEach(x=>x.classList.remove("sel")); b.classList.add("sel");
   const t=b.dataset.t;
-  $("#pane-proj").classList.toggle("hidden",t!=="proj");
-  $("#pane-preus").classList.toggle("hidden",t!=="preus");
-  $("#pane-ind").classList.toggle("hidden",t!=="ind");
-  if(t==="preus") loadPreus(); if(t==="ind") loadIndustrials();
+  ["proj","pet","preus","ind"].forEach(k=>$("#pane-"+k).classList.toggle("hidden",k!==t));
+  if(t==="proj") loadProjectes(); if(t==="pet") loadPeticions(); if(t==="preus") loadPreus(); if(t==="ind") loadIndustrials();
 }));
 
-/* ---- Projectes (worklist) ---- */
+/* ================= Estats ================= */
+const EST_PROJ={
+  rebut:["Rebut · en preparació","b-ind"], en_valoracio:["En valoració","b-ind"],
+  borrador:["Esborrany","b-gray"], pendiente_industriales:["Pendent d'industrials","b-ind"],
+  per_validar:["Per validar","b-rec"], validado:["Validat","b-val"], enviado:["Enviat","b-base"],
+};
+const EST_LIN={
+  auto:["Preu base","b-base"], pendiente_industrial:["Pendent industrial","b-ind"],
+  precio_recibido:["Preu rebut","b-rec"], a_justificar:["A justificar","b-just"], validado:["Validat","b-val"],
+};
+const badge=(map,e)=>{ const [t,c]=map[e]||[e||"—","b-gray"]; return `<span class="badge ${c}"><span class="dot2"></span>${esc(t)}</span>`; };
+
+/* ================= Projectes ================= */
 async function loadProjectes(){
-  const el=$("#pane-proj"); el.innerHTML='<div class="count">Carregant…</div>';
-  const {data,error}=await sb.from("proyectos").select("*").order("fecha",{ascending:false});
-  if(error){el.innerHTML='<div class="empty"><h3>No s\'han pogut carregar els projectes</h3></div>';return;}
+  const el=$("#pane-proj"); el.innerHTML=skel(4);
+  const {data,error}=await sb.from("proyectos").select("*, presupuesto_lineas(count)").order("fecha",{ascending:false});
+  if(error){ errBox(el,"No s'han pogut carregar els projectes",loadProjectes); return; }
+  const toolbar=`<div class="toolbar"><button class="btn" id="newProj">${ic('up','s')} Nou pressupost</button><span class="count">${data.length} ${data.length===1?"projecte":"projectes"}</span></div>`;
   if(!data.length){
-    el.innerHTML=`<div class="empty"><div class="big">📄</div>
+    el.innerHTML=`${toolbar}<div class="empty"><div class="icbox">${ic('file')}</div>
       <h3>Encara no hi ha cap pressupost</h3>
-      <p>Puja el <b>projecte executiu (plànols)</b> i l'<b>estat d'amidaments</b> d'una obra i el sistema en prepararà el pressupost: preus de base automàtics i les partides d'industrial marcades i llestes per demanar.</p>
-      <button class="btn" id="newProj">+ Nou pressupost</button></div>`;
-    $("#newProj").addEventListener("click",()=>alert("Aviat: pujada de plànols + amidaments. (Motor d'ingesta en construcció.)"));
+      <p>Puja el <b>projecte executiu (plànols)</b> i l'<b>estat d'amidaments</b> d'una obra. Nosaltres en preparem la valoració: preus de base automàtics i les partides d'industrial marcades i llestes per demanar.</p>
+      <button class="btn" id="newProj2">${ic('up','s')} Puja la primera obra</button></div>`;
+    $("#newProj").addEventListener("click",openNewProj); $("#newProj2").addEventListener("click",openNewProj);
     return;
   }
-  el.innerHTML=`<div class="toolbar"><button class="btn" id="newProj">+ Nou pressupost</button><span class="count">${data.length} projectes</span></div>
-   <table><thead><tr><th>Obra</th><th>Estat</th><th class="num">Partides</th><th>Data</th></tr></thead><tbody>
-   ${data.map(p=>`<tr><td><b>${esc(p.nombre||"—")}</b></td><td>${esc(p.estado||"")}</td><td class="num">—</td><td>${(p.fecha||"").slice(0,10)}</td></tr>`).join("")}
-   </tbody></table>`;
-  $("#newProj")&&$("#newProj").addEventListener("click",()=>alert("Aviat: pujada de plànols + amidaments."));
+  el.innerHTML=`${toolbar}<div class="tbl"><table><thead><tr><th>Obra</th><th>Tipus</th><th>Estat</th><th class="num">Partides</th><th>Data</th></tr></thead><tbody>
+   ${data.map(p=>{ const n=(p.presupuesto_lineas&&p.presupuesto_lineas[0]&&p.presupuesto_lineas[0].count)||0;
+     return `<tr class="click" data-id="${esc(p.id)}"><td><b>${esc(p.nombre||"—")}</b></td>
+     <td>${p.tipo?`<span class="pill ${p.tipo==='reforma'?'reforma':''}">${p.tipo==='reforma'?'Reforma':'Obra nova'}</span>`:"—"}</td>
+     <td>${badge(EST_PROJ,p.estado)}</td><td class="num">${n||"—"}</td><td>${esc(fmtDate(p.fecha))}</td></tr>`;}).join("")}
+   </tbody></table></div>`;
+  $("#newProj").addEventListener("click",openNewProj);
+  $$("tr.click",el).forEach(tr=>tr.addEventListener("click",()=>openDetall(tr.dataset.id)));
 }
 
-/* ---- Base de preus (dades reals) ---- */
-let PREUS=null;
-async function loadPreus(){
-  const el=$("#pane-preus");
-  if(!PREUS){ el.innerHTML='<div class="count">Carregant base de preus…</div>';
-    const {data}=await sb.from("precios_base").select("capitulo,partida,descripcion,unidad,precio_cliente,es_industrial,tipo").order("tipo").limit(2000);
-    PREUS=data||[]; }
-  const draw=(q="")=>{
-    const rows=PREUS.filter(r=>!q||(r.descripcion||"").toLowerCase().includes(q)||(r.capitulo||"").toLowerCase().includes(q));
-    el.querySelector("#preusBody").innerHTML=rows.slice(0,600).map(r=>`<tr>
-      <td><span class="pill ${r.tipo==='reforma'?'reforma':''}">${r.tipo==='reforma'?'Reforma':'Obra nova'}</span></td>
-      <td>${esc(r.descripcion)}</td><td>${esc(r.unidad||"")}</td>
-      <td class="num">${eur(r.precio_cliente)}</td>
-      <td>${r.es_industrial?'<span class="badge b-ind"><span class="dot" style="background:#b5670f"></span>A industrial</span>':'<span class="badge b-base"><span class="dot" style="background:#137a3a"></span>Base</span>'}</td>
-    </tr>`).join("");
-    el.querySelector("#preusCount").textContent=rows.length+" partides"+(rows.length>600?" (mostrant 600)":"");
+/* ---- Nou pressupost (modal + pujada) ---- */
+function openNewProj(){
+  const ov=document.createElement("div"); ov.className="overlay";
+  ov.innerHTML=`<div class="modal">
+    <h3>Nou pressupost</h3>
+    <p class="sub">Puja el projecte executiu i l'estat d'amidaments. L'obra entra a la cua de valoració i t'avisarem quan estigui a punt per revisar.</p>
+    <label>Nom de l'obra *</label><input id="pjNom" placeholder="p. ex. Reforma pis c/ Aribau 120">
+    <label>Tipus</label><select id="pjTipus"><option value="reforma">Reforma</option><option value="obra_nueva">Obra nova</option></select>
+    <label>Adreça</label><input id="pjAdr" placeholder="carrer i municipi (opcional)">
+    <label>Plànols i amidaments</label>
+    <div class="drop" id="drop">${ic('up')}<br>Arrossega aquí els fitxers<br><span style="font-size:12px">PDF, Excel, imatges… (màx. 100 MB per fitxer)</span></div>
+    <input type="file" id="pjFiles" multiple class="hidden">
+    <div class="filelist" id="flist"></div>
+    <div class="err" id="pjErr"></div>
+    <div class="row"><button class="btn ghost" id="pjCancel">Cancel·la</button><button class="btn" id="pjSave">Crea el pressupost</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  let FILES=[];
+  const drop=$("#drop",ov), finput=$("#pjFiles",ov), flist=$("#flist",ov);
+  const renderF=()=>{ flist.innerHTML=FILES.map((f,i)=>`<div><span>${esc(f.name)}</span><span class="muted">${(f.size/1048576).toFixed(1)} MB</span></div>`).join(""); };
+  drop.addEventListener("click",()=>finput.click());
+  finput.addEventListener("change",()=>{FILES=[...FILES,...finput.files]; renderF();});
+  ;["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+  ;["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+  drop.addEventListener("drop",e=>{FILES=[...FILES,...e.dataTransfer.files]; renderF();});
+  $("#pjCancel",ov).addEventListener("click",()=>ov.remove());
+  $("#pjSave",ov).addEventListener("click", async()=>{
+    const nom=$("#pjNom",ov).value.trim(), err=$("#pjErr",ov), btn=$("#pjSave",ov);
+    if(!nom){err.textContent="Posa un nom a l'obra.";return;}
+    const big=FILES.find(f=>f.size>104857600);
+    if(big){err.textContent=`«${big.name}» supera els 100 MB.`;return;}
+    btn.disabled=true; err.textContent="";
+    btn.textContent="Creant…";
+    const {data:proj,error}=await sb.from("proyectos").insert({nombre:nom,tipo:$("#pjTipus",ov).value,direccion:$("#pjAdr",ov).value.trim()||null,estado:"rebut",autor:ME.email}).select().single();
+    if(error){ btn.disabled=false; btn.textContent="Crea el pressupost"; err.textContent="No s'ha pogut crear. Torna-ho a provar."; return; }
+    const pujats=[];
+    for(let i=0;i<FILES.length;i++){
+      const f=FILES[i];
+      btn.textContent=`Pujant fitxer ${i+1} de ${FILES.length}…`;
+      const clean=f.name.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\w.\-]+/g,"_");
+      const {error:e2}=await sb.storage.from("projectes").upload(`${proj.id}/${Date.now()}_${clean}`,f);
+      if(e2){ err.textContent=`No s'ha pogut pujar «${f.name}». La resta s'han desat.`; }
+      else pujats.push({nom:f.name,mida:f.size});
+    }
+    if(pujats.length) await sb.from("proyectos").update({archivos:pujats}).eq("id",proj.id);
+    ov.remove(); toast("Obra creada ✓ — entra a la cua de valoració");
+    loadProjectes();
+  });
+}
+
+/* ================= Detall projecte ================= */
+let CUR=null;
+async function openDetall(id){
+  $("#presu").classList.add("hidden"); $("#home").classList.add("hidden");
+  const el=$("#detall"); el.classList.remove("hidden"); el.innerHTML=skel(6);
+  const [{data:p,error:e1},{data:lin,error:e2}]=await Promise.all([
+    sb.from("proyectos").select("*").eq("id",id).single(),
+    sb.from("presupuesto_lineas").select("*").eq("proyecto_id",id).order("orden"),
+  ]);
+  if(e1||e2||!p){ errBox(el,"No s'ha pogut obrir el projecte",()=>openDetall(id)); return; }
+  CUR={p,lin:lin||[]};
+  crumb(`<a id="cHome">Inici</a> · <a id="cPresu">Pressupostos</a> · <b>${esc(p.nombre||"Obra")}</b>`);
+  $("#cHome").addEventListener("click",showHome);
+  $("#cPresu").addEventListener("click",()=>{el.classList.add("hidden"); showPresu(); loadProjectes();});
+  renderDetall();
+}
+function lineImport(l){
+  if(l.importe!=null) return Number(l.importe);
+  if(l.medida!=null&&l.precio_unitario!=null) return Number(l.medida)*Number(l.precio_unitario);
+  return null;
+}
+function renderDetall(){
+  const {p,lin}=CUR, el=$("#detall");
+  const nVal=lin.filter(l=>l.estado==="validado").length,
+        nInd=lin.filter(l=>l.estado==="pendiente_industrial").length,
+        nRec=lin.filter(l=>l.estado==="precio_recibido").length,
+        nJus=lin.filter(l=>l.estado==="a_justificar").length;
+  const tot=lin.reduce((s,l)=>{const v=lineImport(l);return s+(v||0);},0);
+  const complet=lin.length>0&&nVal===lin.length;
+  const isDemo=(p.nombre||"").startsWith("EXEMPLE");
+  el.innerHTML=`
+   <button class="back" id="dBack">${ic('left','s')} Pressupostos</button>
+   ${isDemo?`<div class="demo-banner">Obra d'exemple amb partides reals de la vostra base de preus, perquè vegeu el funcionament. Es pot eliminar quan vulgueu.</div>`:""}
+   <div class="dhead"><h2>${esc(p.nombre||"Obra")}</h2>
+     ${p.tipo?`<span class="pill ${p.tipo==='reforma'?'reforma':''}" style="margin-top:6px">${p.tipo==='reforma'?'Reforma':'Obra nova'}</span>`:""}
+     <span style="margin-top:3px">${badge(EST_PROJ,p.estado)}</span></div>
+   <div class="dmeta"><span>${esc(fmtDate(p.fecha))}</span>${p.direccion?`<span>${esc(p.direccion)}</span>`:""}${(p.archivos&&p.archivos.length)?`<span>${p.archivos.length} fitxers adjunts</span>`:""}</div>
+   <div class="stats">
+     <div class="stat"><div class="v">${eur(tot)}</div><div class="k">Total parcial (sense IVA)</div></div>
+     <div class="stat"><div class="v">${nVal} / ${lin.length}</div><div class="k">Partides validades</div></div>
+     ${nInd?`<div class="stat"><div class="v">${nInd}</div><div class="k">Pendents d'industrial</div></div>`:""}
+     ${nRec?`<div class="stat"><div class="v">${nRec}</div><div class="k">Preus rebuts (falta marge)</div></div>`:""}
+     ${nJus?`<div class="stat"><div class="v">${nJus}</div><div class="k">A justificar</div></div>`:""}
+   </div>
+   ${lin.length?`<div class="tbl"><table><thead><tr><th>Capítol</th><th>Descripció</th><th>Ud</th><th class="num">Quantitat</th><th class="num">Preu</th><th class="num">Import</th><th>Estat</th><th></th></tr></thead>
+    <tbody>${lin.map((l,i)=>rowLin(l,i)).join("")}</tbody></table></div>
+   <div class="toolbar" style="margin-top:16px">
+     <button class="btn" id="dlBtn" ${complet?"":"disabled"} title="${complet?"Descarrega el pressupost":"Disponible quan totes les partides estiguin validades"}">${ic('dl','s')} Descarregar pressupost</button>
+     ${complet?"":`<span class="count">Es podrà descarregar quan les ${lin.length} partides estiguin validades.</span>`}
+   </div>
+   <div class="ai-note">${ic('info','s')}<span><b>Revisió tècnica obligatòria:</b> les partides i imports es proposen automàticament (IA) a partir dels vostres plànols, amidaments i base de preus. Reviseu i valideu cada partida abans d'usar el pressupost comercialment.</span></div>`
+   :`<div class="empty"><div class="icbox">${ic('file')}</div><h3>Valoració en preparació</h3><p>Hem rebut la documentació. Quan la valoració estigui a punt, les partides apareixeran aquí per revisar-les i validar-les.</p></div>`}`;
+  $("#dBack").addEventListener("click",()=>{el.classList.add("hidden"); showPresu(); loadProjectes();});
+  if(lin.length){
+    $$("[data-val]",el).forEach(b=>b.addEventListener("click",()=>validarLinia(b.dataset.val)));
+    $$("td.edit",el).forEach(td=>td.addEventListener("click",()=>editCell(td)));
+    if(complet) $("#dlBtn").addEventListener("click",exportCSV);
+  }
+}
+function rowLin(l,i){
+  const imp=lineImport(l);
+  const canEditQty=l.estado!=="validado";
+  const priceCell = l.estado==="precio_recibido"
+    ? `<td class="num edit" data-f="margen_pct" data-id="${esc(l.id)}" title="Preu industrial ${eur(l.precio_industrial)} — clica per posar el marge">${l.margen_pct!=null?esc(String(l.margen_pct))+" % → "+eur(l.precio_unitario):'<span class="muted">posa el marge %</span>'}</td>`
+    : (l.estado==="pendiente_industrial"
+      ? `<td class="num muted">—</td>`
+      : `<td class="num ${l.estado!=='validado'?'edit':''}" ${l.estado!=='validado'?`data-f="precio_unitario" data-id="${esc(l.id)}" title="Clica per editar"`:""}>${eur(l.precio_unitario)}</td>`);
+  return `<tr>
+    <td class="cap">${esc(l.capitulo||"")}</td>
+    <td>${esc(l.descripcion||"")}</td>
+    <td>${esc(l.unidad||"")}</td>
+    <td class="num ${canEditQty?'edit':''}" ${canEditQty?`data-f="medida" data-id="${esc(l.id)}" title="Clica per editar"`:""}>${l.medida!=null?Number(l.medida).toLocaleString("ca-ES"):"—"}</td>
+    ${priceCell}
+    <td class="num"><b>${eur(imp)}</b></td>
+    <td>${badge(EST_LIN,l.estado)}</td>
+    <td>${l.estado!=="validado"&&l.estado!=="pendiente_industrial"?`<button class="vbtn" data-val="${esc(l.id)}">✓ Validar</button>`:""}</td>
+  </tr>`;
+}
+function editCell(td){
+  if(td.querySelector("input")) return;
+  const f=td.dataset.f, id=td.dataset.id, l=CUR.lin.find(x=>x.id===id);
+  const cur=f==="margen_pct"?(l.margen_pct??""):(l[f]??"");
+  td.dataset.prev=td.innerHTML;
+  td.innerHTML=`<input type="number" step="0.01" value="${esc(String(cur))}">`;
+  const inp=td.querySelector("input"); inp.focus(); inp.select();
+  let closed=false;
+  const restore=()=>{ td.innerHTML=td.dataset.prev; bindRow(td); };
+  const cancel=()=>{ if(closed)return; closed=true; restore(); };
+  const save=async()=>{
+    if(closed) return; closed=true;
+    const v=inp.value===""?null:Number(inp.value);
+    if(v!=null&&(isNaN(v)||v<0)){ restore(); return; }
+    const upd={};
+    if(f==="margen_pct"){
+      if(v==null||l.precio_industrial==null){ restore(); return; }
+      upd.margen_pct=v;
+      upd.precio_unitario=Math.round(Number(l.precio_industrial)*(1+v/100)*100)/100;
+    } else upd[f]=v;
+    const nl={...l,...upd};
+    if(nl.medida!=null&&nl.precio_unitario!=null) upd.importe=Math.round(nl.medida*nl.precio_unitario*100)/100;
+    const {error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id);
+    if(error){ toast("No s'ha pogut desar. Torna-ho a provar."); restore(); return; }
+    Object.assign(l,upd); toast("Desat ✓"); renderDetall();
   };
-  el.innerHTML=`<div class="toolbar"><input class="search" id="preusQ" placeholder="Cerca partida o capítol…"><span class="count" id="preusCount"></span></div>
-   <table><thead><tr><th>Tipus</th><th>Descripció</th><th>Ud</th><th class="num">Preu client</th><th>Origen</th></tr></thead><tbody id="preusBody"></tbody></table>
-   <div class="footnote">Reforma = preu client directe. «A industrial» = el preu es demana a l'industrial en cada obra.</div>`;
-  $("#preusQ").addEventListener("input",e=>draw(e.target.value.toLowerCase())); draw();
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter")save(); if(e.key==="Escape")cancel(); });
+  inp.addEventListener("blur",save);
+}
+function bindRow(td){ td.addEventListener("click",()=>editCell(td),{once:true}); }
+async function validarLinia(id){
+  const l=CUR.lin.find(x=>x.id===id); if(!l) return;
+  if(l.precio_unitario==null||l.medida==null){ toast("Falta la quantitat o el preu per validar."); return; }
+  const upd={estado:"validado",validado_por:ME.email,validado_at:new Date().toISOString(),
+    importe:Math.round(l.medida*l.precio_unitario*100)/100};
+  const {error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id);
+  if(error){ toast("No s'ha pogut validar. Torna-ho a provar."); return; }
+  Object.assign(l,upd);
+  if(CUR.lin.every(x=>x.estado==="validado")){
+    await sb.from("proyectos").update({estado:"validado"}).eq("id",CUR.p.id);
+    CUR.p.estado="validado"; toast("Pressupost validat al complet ✓");
+  } else toast("Partida validada ✓");
+  renderDetall();
+}
+function exportCSV(){
+  const {p,lin}=CUR;
+  const n2=v=>v==null?"":Number(v).toFixed(2).replace(".",",");
+  const rows=[["Capítol","Partida","Descripció","Ud","Quantitat","Preu unitari","Import"],
+    ...lin.map(l=>[l.capitulo||"",l.partida||"",l.descripcion||"",l.unidad||"",n2(l.medida),n2(l.precio_unitario),n2(lineImport(l))])];
+  const tot=lin.reduce((s,l)=>s+(lineImport(l)||0),0);
+  rows.push([],["","","","","","TOTAL",n2(tot)]);
+  rows.push([],["Preus sense IVA. El tipus aplicable (10% o 21%) depèn del projecte."]);
+  const csv="\uFEFF"+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\r\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  a.download="pressupost_"+(p.nombre||"obra").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\w-]+/g,"_").slice(0,60)+".csv";
+  a.click(); URL.revokeObjectURL(a.href);
+  toast("Pressupost descarregat ✓");
 }
 
-/* ---- Industrials (dades reals) ---- */
+/* ================= Peticions ================= */
+let INDS=null;
+async function loadPeticions(){
+  const el=$("#pane-pet"); el.innerHTML=skel(3);
+  const [{data:pets,error:e1},{data:inds,error:e2},{data:projs}]=await Promise.all([
+    sb.from("peticiones_industrial").select("*").order("fecha",{ascending:false}),
+    INDS?Promise.resolve({data:INDS}):sb.from("industriales").select("id,nombre,oficio,email").order("oficio"),
+    sb.from("proyectos").select("id,nombre"),
+  ]);
+  if(e1||e2){ errBox(el,"No s'han pogut carregar les peticions",loadPeticions); return; }
+  INDS=inds||INDS||[];
+  const pmap=Object.fromEntries((projs||[]).map(p=>[p.id,p.nombre]));
+  const imap=Object.fromEntries(INDS.map(x=>[x.id,x]));
+  if(!pets.length){
+    el.innerHTML=`<div class="empty"><div class="icbox">${ic('mail')}</div><h3>Cap petició pendent</h3>
+     <p>Quan una obra tingui partides d'industrial, aquí trobareu els correus de petició de preu <b>ja redactats</b>: els reviseu i els envieu vosaltres des del vostre correu.</p></div>`;
+    return;
+  }
+  el.innerHTML=`<div class="count" style="margin-bottom:12px">${pets.length} ${pets.length===1?"petició":"peticions"} · <b>els correus els envieu sempre vosaltres</b> — l'app només els deixa preparats</div>`+
+   pets.map(pt=>{ const ind=imap[pt.industrial_id];
+    return `<div class="pet">
+     <div class="pet-h"><b>${esc(pt.asunto||"Petició")}</b><span class="badge ${pt.estado==='enviada'?'b-val':'b-rec'}"><span class="dot2"></span>${pt.estado==='enviada'?'Enviada':'Preparada'}</span></div>
+     <div class="meta">${esc(pmap[pt.proyecto_id]||"")}</div>
+     <label style="margin-top:2px">Industrial</label>
+     <select data-reassign="${esc(pt.id)}">${INDS.map(x=>`<option value="${esc(x.id)}" ${x.id===pt.industrial_id?"selected":""}>${esc(x.oficio)} — ${esc(x.nombre)}${x.email?"":" (sense correu)"}</option>`).join("")}</select>
+     <pre>${esc(pt.cuerpo||"")}</pre>
+     <div class="acts">
+       <button class="btn sm" data-copy="${esc(pt.id)}">${ic('copy','s')} Copia el correu</button>
+       ${ind&&ind.email?`<a class="btn sm ghost" href="mailto:${esc(ind.email)}?subject=${encodeURIComponent(pt.asunto||"")}&body=${encodeURIComponent(pt.cuerpo||"")}">${ic('mail','s')} Obre al correu</a>`:""}
+       ${pt.estado!=='enviada'?`<button class="btn sm ghost" data-sent="${esc(pt.id)}">${ic('check','s')} Marca com enviada</button>`:""}
+     </div></div>`;}).join("");
+  $$("[data-copy]",el).forEach(b=>b.addEventListener("click",async()=>{
+    const pt=pets.find(x=>x.id===b.dataset.copy);
+    try{ await navigator.clipboard.writeText((pt.asunto||"")+"\n\n"+(pt.cuerpo||"")); toast("Correu copiat ✓ — enganxa'l al teu gestor de correu"); }
+    catch(e){ toast("No s'ha pogut copiar automàticament."); }
+  }));
+  $$("[data-sent]",el).forEach(b=>b.addEventListener("click",async()=>{
+    const {error}=await sb.from("peticiones_industrial").update({estado:"enviada"}).eq("id",b.dataset.sent);
+    if(error){toast("No s'ha pogut desar.");return;} toast("Marcada com enviada ✓"); loadPeticions();
+  }));
+  $$("select[data-reassign]",el).forEach(s=>s.addEventListener("change",async()=>{
+    const {error}=await sb.from("peticiones_industrial").update({industrial_id:s.value}).eq("id",s.dataset.reassign);
+    toast(error?"No s'ha pogut canviar.":"Industrial canviat ✓");
+  }));
+}
+
+/* ================= Base de preus ================= */
+let PREUS=null, preusLoading=null, preusLimit=200;
+function fetchPreus(){
+  if(PREUS) return Promise.resolve(PREUS);
+  if(!preusLoading) preusLoading=sb.from("precios_base")
+    .select("capitulo,partida,descripcion,unidad,precio_cliente,es_industrial,tipo")
+    .order("tipo").order("capitulo").limit(2000)
+    .then(({data,error})=>{ preusLoading=null; if(error) throw error; PREUS=data||[]; return PREUS; });
+  return preusLoading;
+}
+let fTipus="tots", fOrigen="tots";
+async function loadPreus(){
+  const el=$("#pane-preus"); el.innerHTML=skel(6);
+  try{ await fetchPreus(); }catch(e){ errBox(el,"No s'ha pogut carregar la base de preus",loadPreus); return; }
+  el.innerHTML=`
+   <div class="toolbar">
+     <div class="search-wrap">${ic('search','s')}<input id="preusQ" placeholder="Cerca partida o capítol…" aria-label="Cerca"></div>
+     <span class="count" id="preusCount"></span>
+   </div>
+   <div class="toolbar" style="margin-top:-4px">
+     <div class="chips" id="chipT">
+       <button class="chip sel" data-v="tots">Tots</button><button class="chip" data-v="reforma">Reforma</button><button class="chip" data-v="obra_nueva">Obra nova</button>
+     </div>
+     <div class="chips" id="chipO">
+       <button class="chip sel" data-v="tots">Tot origen</button><button class="chip" data-v="base">Preu directe</button><button class="chip" data-v="ind">A industrial (grocs)</button>
+     </div>
+   </div>
+   <div class="tbl"><table><thead><tr><th>Tipus</th><th>Capítol</th><th>Descripció</th><th>Ud</th><th class="num">Preu client</th><th>Origen</th></tr></thead><tbody id="preusBody"></tbody></table></div>
+   <div class="toolbar" style="margin-top:10px"><button class="btn ghost sm hidden" id="moreBtn">Mostra'n més</button></div>
+   <div class="footnote">Partides <b>sense groc</b> = preu client directe, amb el marge ja inclòs (tant a reforma com a obra nova).<br>
+   Partides <b>«A industrial» (grocs)</b> = el preu mostrat és només de <b>referència</b>: es demana preu actualitzat a l'industrial en cada obra.</div>`;
+  const draw=()=>{
+    const q=$("#preusQ").value.toLowerCase();
+    const rows=PREUS.filter(r=>
+      (fTipus==="tots"||r.tipo===fTipus)&&
+      (fOrigen==="tots"||(fOrigen==="ind"?r.es_industrial:!r.es_industrial))&&
+      (!q||(r.descripcion||"").toLowerCase().includes(q)||(r.capitulo||"").toLowerCase().includes(q)||(r.partida||"").toLowerCase().includes(q)));
+    $("#preusBody").innerHTML=rows.slice(0,preusLimit).map(r=>`<tr>
+      <td><span class="pill ${r.tipo==='reforma'?'reforma':''}">${r.tipo==='reforma'?'Reforma':'Obra nova'}</span></td>
+      <td class="cap">${esc(r.capitulo||"")}</td>
+      <td>${esc(r.descripcion)}</td><td>${esc(r.unidad||"")}</td>
+      <td class="num ${r.es_industrial?'ref-price':''}" ${r.es_industrial?'title="Preu de referència — es demana preu actualitzat a l\'industrial"':''}>${r.es_industrial?"ref. ":""}${eur(r.precio_cliente)}</td>
+      <td>${r.es_industrial?'<span class="badge b-ind"><span class="dot2"></span>A industrial</span>':'<span class="badge b-base"><span class="dot2"></span>Preu directe</span>'}</td>
+    </tr>`).join("");
+    $("#preusCount").textContent=rows.length+" partides";
+    $("#moreBtn").classList.toggle("hidden",rows.length<=preusLimit);
+  };
+  let deb=null;
+  $("#preusQ").addEventListener("input",()=>{clearTimeout(deb);deb=setTimeout(()=>{preusLimit=200;draw();},180);});
+  $$("#chipT .chip").forEach(c=>c.addEventListener("click",()=>{$$("#chipT .chip").forEach(x=>x.classList.remove("sel"));c.classList.add("sel");fTipus=c.dataset.v;preusLimit=200;draw();}));
+  $$("#chipO .chip").forEach(c=>c.addEventListener("click",()=>{$$("#chipO .chip").forEach(x=>x.classList.remove("sel"));c.classList.add("sel");fOrigen=c.dataset.v;preusLimit=200;draw();}));
+  $("#moreBtn").addEventListener("click",()=>{preusLimit+=200;draw();});
+  draw();
+}
+
+/* ================= Industrials ================= */
+let INDS_CACHE=null;
 async function loadIndustrials(){
-  const el=$("#pane-ind"); el.innerHTML='<div class="count">Carregant industrials…</div>';
-  const {data}=await sb.from("industriales").select("nombre,oficio,email,telefono").order("oficio");
-  const rows=data||[];
-  el.innerHTML=`<div class="toolbar"><span class="count">${rows.length} contactes</span></div>
-   <table><thead><tr><th>Gremi</th><th>Contacte</th><th>Correu</th><th>Telèfon</th></tr></thead><tbody>
-   ${rows.map(r=>`<tr><td><span class="pill">${esc(r.oficio||"—")}</span></td><td><b>${esc(r.nombre||"—")}</b></td>
-     <td>${r.email?`<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>`:"—"}</td><td>${esc(r.telefono||"—")}</td></tr>`).join("")}
-   </tbody></table>`;
+  const el=$("#pane-ind"); el.innerHTML=skel(5);
+  if(!INDS_CACHE){
+    const {data,error}=await sb.from("industriales").select("nombre,oficio,email,telefono").order("oficio");
+    if(error){ errBox(el,"No s'han pogut carregar els industrials",loadIndustrials); return; }
+    INDS_CACHE=data||[];
+  }
+  el.innerHTML=`<div class="toolbar">
+    <div class="search-wrap">${ic('search','s')}<input id="indQ" placeholder="Cerca per gremi, nom o correu…" aria-label="Cerca industrials"></div>
+    <span class="count" id="indCount"></span></div>
+   <div class="tbl"><table><thead><tr><th>Gremi</th><th>Contacte</th><th>Correu</th><th>Telèfon</th></tr></thead><tbody id="indBody"></tbody></table></div>`;
+  const draw=()=>{
+    const q=$("#indQ").value.toLowerCase();
+    const rows=INDS_CACHE.filter(r=>!q||[r.nombre,r.oficio,r.email].some(v=>(v||"").toLowerCase().includes(q)));
+    $("#indBody").innerHTML=rows.map(r=>`<tr><td><span class="pill">${esc(r.oficio||"—")}</span></td><td><b>${esc(r.nombre||"—")}</b></td>
+     <td>${r.email?`<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>`:"—"}</td>
+     <td>${r.telefono?`<a href="tel:${esc(String(r.telefono).replace(/[^\d+]/g,""))}">${ic('phone','s')} ${esc(r.telefono)}</a>`:"—"}</td></tr>`).join("");
+    $("#indCount").textContent=rows.length+" contactes";
+  };
+  $("#indQ").addEventListener("input",draw); draw();
 }
 </script>
 </body>
