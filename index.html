@@ -228,10 +228,9 @@ td.edit input{padding:5px 8px;font-size:13px;width:90px;border-radius:7px}
     <section id="home">
       <div class="hello">
         <h1 id="helloH">Hola</h1>
-        <p>Aquest és el vostre espai d'automatitzacions. Comencem pels <b>pressupostos</b>; anirem afegint mòduls.</p>
+        <p>El vostre espai de treball dels <b>pressupostos</b>.</p>
       </div>
       <div class="grid" id="mods"></div>
-      <div class="invite"><span class="icbox" id="inviteIc"></span><span><b>Voleu activar un mòdul nou?</b> Actes de visita, panell d'obra, assistent… Els anem sumant a aquest mateix espai a mesura que us facin falta. Parleu-ne amb Pracmatik.</span></div>
     </section>
 
     <!-- PRESSUPOSTOS -->
@@ -358,7 +357,6 @@ function boot(user){
   $("#helloH").textContent="Hola, "+nom;
   $("#chgPwd").innerHTML=ic('lock','s')+" Canviar contrasenya";
   $("#logoutBtn").innerHTML=ic('out','s')+" Sortir";
-  $("#inviteIc").innerHTML=ic('spark','s');
   renderMods(); showHome();
   if(recoveryMode || (user.user_metadata&&user.user_metadata.temp_pwd)) openPwdModal(!!(user.user_metadata&&user.user_metadata.temp_pwd));
 }
@@ -396,9 +394,6 @@ function openPwdModal(forced){
 /* ================= Home / mòduls ================= */
 const MODULES=[
   {id:"presu",on:true,icn:"file",t:"Pressupostos",d:"Pugeu plànols i amidaments, valorem la base, preparem les peticions als industrials i valideu el pressupost."},
-  {id:"actes",on:false,icn:"clip",t:"Actes de visita d'obra",d:"Genereu l'acta de cada visita amb tasques i responsables, automàticament."},
-  {id:"obra",on:false,icn:"dash",t:"Panell d'obra",d:"Seguiment de cada obra de principi a fi, amb l'estat sempre a la vista."},
-  {id:"chat",on:false,icn:"chat",t:"Assistent",d:"Pregunteu pels vostres projectes, preus i industrials en llenguatge natural."},
 ];
 function renderMods(){
   $("#mods").innerHTML=MODULES.map(m=>`
