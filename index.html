@@ -564,9 +564,22 @@ function renderDetall(){
   $("#revalBtn")&&$("#revalBtn").addEventListener("click",revalorar);
   if(lin.length){
     $$("[data-val]",el).forEach(b=>b.addEventListener("click",()=>validarLinia(b.dataset.val)));
+    $$("[data-unval]",el).forEach(b=>b.addEventListener("click",()=>desvalidarLinia(b.dataset.unval)));
     $$("td.edit",el).forEach(td=>td.addEventListener("click",()=>editCell(td)));
     if(complet) $("#dlBtn").addEventListener("click",exportExcel);
   }
+}
+/* Desfer validació: torna la línia a l'estat que li toca segons l'origen (per corregir sense refer tota l'obra) */
+async function desvalidarLinia(id){
+  const l=CUR.lin.find(x=>x.id===id); if(!l) return;
+  const estado = l.precio_industrial!=null ? "precio_recibido"
+    : (l.origen==="industrial" ? "pendiente_industrial" : (l.origen==="base" ? "proposta" : "a_justificar"));
+  const upd={estado, validado_por:null, validado_at:null};
+  const {error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id);
+  if(error){ toast("No s'ha pogut desfer. Torna-ho a provar."); return; }
+  Object.assign(l,upd);
+  if(CUR.p.estado==="validado"){ await sb.from("proyectos").update({estado:"per_validar"}).eq("id",CUR.p.id); CUR.p.estado="per_validar"; }
+  toast("Validació desfeta — pots corregir la línia"); renderDetall();
 }
 /* Re-valorar: torna a passar l'obra pel motor (idempotent). Serveix per reintentar «Necessita revisió» o refer una valoració. */
 async function revalorar(){
@@ -617,8 +630,8 @@ function rowLin(l,i){
     <td class="num ${canEditQty?'edit':''}" ${canEditQty?`data-f="medida" data-id="${esc(l.id)}" title="Clica per editar"`:""}>${l.medida!=null?Number(l.medida).toLocaleString("ca-ES"):"—"}</td>
     ${priceCell}
     <td class="num"><b>${eur(imp)}</b></td>
-    <td>${badge(EST_LIN,l.estado)}${l.gremi_sugerido?`<div class="cap" style="margin-top:3px">→ ${esc(l.gremi_sugerido)}</div>`:""}</td>
-    <td>${l.estado!=="validado"&&l.estado!=="pendiente_industrial"?`<button class="vbtn" data-val="${esc(l.id)}">✓ Validar</button>`:""}</td>
+    <td>${badge(EST_LIN,l.estado)}${(l.estado==="proposta"||l.estado==="auto")&&l.confianza!=null?`<div class="cap" style="margin-top:3px" title="Confiança de la IA en aquest preu">conf. ${Math.round(l.confianza*100)}%</div>`:""}${l.gremi_sugerido?`<div class="cap" style="margin-top:3px">→ ${esc(l.gremi_sugerido)}</div>`:""}${l.motiu?`<div class="cap" style="margin-top:3px;color:#b5670f;white-space:normal;max-width:180px">⚠ ${esc(l.motiu)}</div>`:""}</td>
+    <td>${l.estado!=="validado"&&l.estado!=="pendiente_industrial"?`<button class="vbtn" data-val="${esc(l.id)}">✓ Validar</button>`:(l.estado==="validado"?`<button class="vbtn" data-unval="${esc(l.id)}" style="color:#6b7280" title="Desfer la validació per corregir">↺ Desfer</button>`:"")}</td>
   </tr>`;
 }
 function editCell(td){
