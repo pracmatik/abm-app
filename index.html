@@ -542,6 +542,8 @@ function renderDetall(){
      ${p.tipo?`<span class="pill ${p.tipo==='reforma'?'reforma':''}" style="margin-top:6px">${p.tipo==='reforma'?'Reforma':'Obra nova'}</span>`:""}
      <span style="margin-top:3px">${badge(EST_PROJ,p.estado)}</span></div>
    <div class="dmeta"><span>${esc(fmtDate(p.fecha))}</span>${p.direccion?`<span>${esc(p.direccion)}</span>`:""}${(p.archivos&&p.archivos.length)?`<span>${p.archivos.length} fitxers adjunts</span>`:""}</div>
+   ${p.notas?`<div class="ai-note" style="margin:0 0 12px;background:#fff8ef;border-color:#f2d9b0;color:#8a5a12">${ic('info','s')}<span>${esc(p.notas)}</span></div>`:""}
+   <div class="toolbar" style="margin:2px 0 14px"><button class="btn ghost sm" id="revalBtn">↻ Re-valorar amb l'IA</button><span class="count">Torna a processar els fitxers pujats (refà totes les partides).</span></div>
    <div class="stats">
      <div class="stat"><div class="v">${eur(tot)}</div><div class="k">Total parcial (sense IVA)</div></div>
      <div class="stat"><div class="v">${nVal} / ${lin.length}</div><div class="k">Partides validades</div></div>
@@ -559,11 +561,26 @@ function renderDetall(){
    <div class="ai-note">${ic('info','s')}<span><b>Revisió tècnica obligatòria:</b> les partides i imports es proposen automàticament (IA) a partir dels vostres plànols, amidaments i base de preus. Reviseu i valideu cada partida abans d'usar el pressupost comercialment.</span></div>`
    :`<div class="empty"><div class="icbox">${ic('file')}</div><h3>Valoració en preparació</h3><p>Hem rebut la documentació. Quan la valoració estigui a punt, les partides apareixeran aquí per revisar-les i validar-les.</p></div>`}`;
   $("#dBack").addEventListener("click",()=>{el.classList.add("hidden"); showPresu(); loadProjectes();});
+  $("#revalBtn")&&$("#revalBtn").addEventListener("click",revalorar);
   if(lin.length){
     $$("[data-val]",el).forEach(b=>b.addEventListener("click",()=>validarLinia(b.dataset.val)));
     $$("td.edit",el).forEach(td=>td.addEventListener("click",()=>editCell(td)));
     if(complet) $("#dlBtn").addEventListener("click",exportExcel);
   }
+}
+/* Re-valorar: torna a passar l'obra pel motor (idempotent). Serveix per reintentar «Necessita revisió» o refer una valoració. */
+async function revalorar(){
+  if(!confirm("Tornar a valorar aquesta obra amb l'IA?\n\nEs refaran TOTES les partides a partir dels fitxers pujats. Les validacions i preus que hàgiu introduït manualment es perdran.")) return;
+  const el=$("#detall"); el.innerHTML=skel(6);
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(SUPA_URL+"/functions/v1/motor-valoracio",{method:"POST",
+      headers:{Authorization:"Bearer "+session.access_token,apikey:SUPA_ANON,"Content-Type":"application/json"},
+      body:JSON.stringify({proyecto_id:CUR.p.id})});
+    const j=await r.json();
+    toast(j.ok?`Revalorat ✓ · ${j.partides} partides`:("No s'ha pogut: "+(j.error||j.motiu||"revisa els fitxers")).slice(0,90));
+  }catch(e){ toast("Error de connexió en revalorar. Torna-ho a provar."); }
+  openDetall(CUR.p.id);
 }
 /* Excel real: la funció del núvol omple el document original amb els preus validats */
 async function exportExcel(){
@@ -591,7 +608,7 @@ function rowLin(l,i){
   const priceCell = l.estado==="precio_recibido"
     ? `<td class="num edit" data-f="margen_pct" data-id="${esc(l.id)}" title="Preu industrial ${eur(l.precio_industrial)} — clica per posar el marge">${l.margen_pct!=null?esc(String(l.margen_pct))+" % → "+eur(l.precio_unitario):'<span class="muted">posa el marge %</span>'}</td>`
     : (l.estado==="pendiente_industrial"
-      ? `<td class="num muted">—</td>`
+      ? `<td class="num edit" data-f="precio_industrial" data-id="${esc(l.id)}" title="Clica per introduir el preu que us ha passat l'industrial"><span class="muted">+ preu rebut</span></td>`
       : `<td class="num ${l.estado!=='validado'?'edit':''}" ${l.estado!=='validado'?`data-f="precio_unitario" data-id="${esc(l.id)}" title="Clica per editar"`:""}>${eur(l.precio_unitario)}</td>`);
   return `<tr>
     <td class="cap">${esc(l.capitulo||"")}</td>
@@ -618,17 +635,27 @@ function editCell(td){
     if(closed) return; closed=true;
     const v=inp.value===""?null:Number(inp.value);
     if(v!=null&&(isNaN(v)||v<0)){ restore(); return; }
+    const prevPrice=l.precio_unitario;   // per a l'aprenentatge
     const upd={};
     if(f==="margen_pct"){
       if(v==null||l.precio_industrial==null){ restore(); return; }
       upd.margen_pct=v;
       upd.precio_unitario=Math.round(Number(l.precio_industrial)*(1+v/100)*100)/100;
+    } else if(f==="precio_industrial"){
+      if(v==null){ restore(); return; }
+      upd.precio_industrial=v; upd.estado="precio_recibido";   // preu rebut → falta el marge
     } else upd[f]=v;
     const nl={...l,...upd};
     if(nl.medida!=null&&nl.precio_unitario!=null) upd.importe=Math.round(nl.medida*nl.precio_unitario*100)/100;
     const {error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id);
     if(error){ toast("No s'ha pogut desar. Torna-ho a provar."); restore(); return; }
-    Object.assign(l,upd); toast("Desat ✓"); renderDetall();
+    // aprenentatge: si el tècnic corregeix el preu d'una PROPOSTA de la IA, ho registrem per recalibrar
+    if(f==="precio_unitario" && l.estado==="proposta" && v!=null && v!==prevPrice){
+      sb.from("aprendizaje").insert({proyecto_id:CUR.p.id,
+        contexto:`${(l.descripcion||"").slice(0,140)} · IA proposava ${prevPrice} €/u (confiança ${l.confianza??"?"})`,
+        correccion:`tècnic ${ME.email} → ${v} €/u`}).then(()=>{});
+    }
+    Object.assign(l,upd); toast(f==="precio_industrial"?"Preu rebut desat ✓ — ara posa el marge":"Desat ✓"); renderDetall();
   };
   inp.addEventListener("keydown",e=>{ if(e.key==="Enter")save(); if(e.key==="Escape")cancel(); });
   inp.addEventListener("blur",save);
@@ -636,9 +663,11 @@ function editCell(td){
 function bindRow(td){ td.addEventListener("click",()=>editCell(td),{once:true}); }
 async function validarLinia(id){
   const l=CUR.lin.find(x=>x.id===id); if(!l) return;
-  if(l.precio_unitario==null||l.medida==null){ toast("Falta la quantitat o el preu per validar."); return; }
-  const upd={estado:"validado",validado_por:ME.email,validado_at:new Date().toISOString(),
-    importe:Math.round(l.medida*l.precio_unitario*100)/100};
+  let imp;
+  if(l.precio_unitario!=null&&l.medida!=null){ imp=Math.round(l.medida*l.precio_unitario*100)/100; }
+  else if(l.estado==="a_justificar"){ imp=lineImport(l)??0; }   // nota / partida sense cost o inclosa en una altra → validar a 0
+  else { toast("Falta la quantitat o el preu per validar."); return; }
+  const upd={estado:"validado",validado_por:ME.email,validado_at:new Date().toISOString(),importe:imp};
   const {error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id);
   if(error){ toast("No s'ha pogut validar. Torna-ho a provar."); return; }
   Object.assign(l,upd);
@@ -685,7 +714,7 @@ async function loadPeticions(){
   el.innerHTML=`<div class="count" style="margin-bottom:12px">${pets.length} ${pets.length===1?"petició":"peticions"} · <b>els correus els envieu sempre vosaltres</b> — l'app només els deixa preparats</div>`+
    pets.map(pt=>{ const ind=imap[pt.industrial_id];
     return `<div class="pet">
-     <div class="pet-h"><b>${esc(pt.asunto||"Petició")}</b><span class="badge ${pt.estado==='enviada'?'b-val':'b-rec'}"><span class="dot2"></span>${pt.estado==='enviada'?'Enviada':'Preparada'}</span></div>
+     <div class="pet-h"><b>${esc(pt.asunto||"Petició")}</b><span class="badge ${pt.estado==='enviada'?'b-val':'b-rec'}"><span class="dot2"></span>${pt.estado==='enviada'?'Enviada':'Preparada'}</span>${(ind&&!ind.email)?`<span class="badge b-just"><span class="dot2"></span>sense correu — copieu el text</span>`:""}</div>
      <div class="meta">${esc(pmap[pt.proyecto_id]||"")}</div>
      <label style="margin-top:2px">Industrial</label>
      <select data-reassign="${esc(pt.id)}">${INDS.map(x=>`<option value="${esc(x.id)}" ${x.id===pt.industrial_id?"selected":""}>${esc(x.oficio)} — ${esc(x.nombre)}${x.email?"":" (sense correu)"}</option>`).join("")}</select>
