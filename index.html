@@ -591,7 +591,8 @@ async function revalorar(){
       headers:{Authorization:"Bearer "+session.access_token,apikey:SUPA_ANON,"Content-Type":"application/json"},
       body:JSON.stringify({proyecto_id:CUR.p.id})});
     const j=await r.json();
-    toast(j.ok?`Revalorat ✓ · ${j.partides} partides`:("No s'ha pogut: "+(j.error||j.motiu||"revisa els fitxers")).slice(0,90));
+    toast(j.fase==="visio" ? `Lectura del PDF feta (${j.partides} partides) — torna a prémer «Re-valorar» per completar la valoració`
+      : j.ok?`Revalorat ✓ · ${j.partides} partides`:("No s'ha pogut: "+(j.error||j.motiu||"revisa els fitxers")).slice(0,90));
   }catch(e){ toast("Error de connexió en revalorar. Torna-ho a provar."); }
   openDetall(CUR.p.id);
 }
