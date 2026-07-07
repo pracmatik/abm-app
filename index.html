@@ -663,10 +663,11 @@ function editCell(td){
     if(nl.medida!=null&&nl.precio_unitario!=null) upd.importe=Math.round(nl.medida*nl.precio_unitario*100)/100;
     const {error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id);
     if(error){ toast("No s'ha pogut desar. Torna-ho a provar."); restore(); return; }
-    // aprenentatge: si el tècnic corregeix el preu d'una PROPOSTA de la IA, ho registrem per recalibrar
-    if(f==="precio_unitario" && l.estado==="proposta" && v!=null && v!==prevPrice){
+    // aprenentatge: CADA correcció de preu del tècnic (auto/proposta/criteri) = un parell d'entrenament.
+    // En 2-3 mesos d'ús acumula prou dades reals per recalibrar/afinar; cada correcció compta.
+    if(f==="precio_unitario" && ["proposta","auto","a_justificar"].includes(l.estado) && v!=null && v!==prevPrice){
       sb.from("aprendizaje").insert({proyecto_id:CUR.p.id,
-        contexto:`${(l.descripcion||"").slice(0,140)} · IA proposava ${prevPrice} €/u (confiança ${l.confianza??"?"})`,
+        contexto:`[${l.estado}] ${(l.descripcion||"").slice(0,140)} · IA ${prevPrice??"—"} €/u (conf ${l.confianza??"?"})`,
         correccion:`tècnic ${ME.email} → ${v} €/u`}).then(()=>{});
     }
     Object.assign(l,upd); toast(f==="precio_industrial"?"Preu rebut desat ✓ — ara posa el marge":"Desat ✓"); renderDetall();
