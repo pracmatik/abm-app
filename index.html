@@ -670,6 +670,7 @@ function editCell(td){
         contexto:`[${l.estado}] ${(l.descripcion||"").slice(0,140)} · IA ${prevPrice??"—"} €/u (conf ${l.confianza??"?"})`,
         correccion:`tècnic ${ME.email} → ${v} €/u`}).then(()=>{});
     }
+    if(["precio_unitario","margen_pct","precio_industrial"].includes(f)) l._touched=true;   // marca coneixement humà per a l'aprenentatge
     Object.assign(l,upd); toast(f==="precio_industrial"?"Preu rebut desat ✓ — ara posa el marge":"Desat ✓"); renderDetall();
   };
   inp.addEventListener("keydown",e=>{ if(e.key==="Enter")save(); if(e.key==="Escape")cancel(); });
@@ -678,6 +679,7 @@ function editCell(td){
 function bindRow(td){ td.addEventListener("click",()=>editCell(td),{once:true}); }
 async function validarLinia(id){
   const l=CUR.lin.find(x=>x.id===id); if(!l) return;
+  const prevEstado=l.estado;
   let imp;
   if(l.precio_unitario!=null&&l.medida!=null){ imp=Math.round(l.medida*l.precio_unitario*100)/100; }
   else if(l.estado==="a_justificar"){ imp=lineImport(l)??0; }   // nota / partida sense cost o inclosa en una altra → validar a 0
@@ -686,6 +688,12 @@ async function validarLinia(id){
   const {error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id);
   if(error){ toast("No s'ha pogut validar. Torna-ho a provar."); return; }
   Object.assign(l,upd);
+  // BUCLE D'APRENENTATGE: si la línia porta coneixement humà (preu tocat pel tècnic o preu d'industrial rebut)
+  // i té preu positiu → l'afegim a la base (fn `aprende`) perquè el motor la proposi a la següent obra. Best-effort.
+  if((l._touched||prevEstado==="precio_recibido") && l.precio_unitario!=null && Number(l.precio_unitario)>0){
+    sb.functions.invoke("aprende",{body:{descripcion:l.descripcion,precio_unitario:l.precio_unitario,
+      unidad:l.unidad,tipo:CUR.p.tipo,capitulo:l.capitulo,obra:CUR.p.nombre}}).catch(()=>{});
+  }
   if(CUR.lin.every(x=>x.estado==="validado")){
     await sb.from("proyectos").update({estado:"validado"}).eq("id",CUR.p.id);
     CUR.p.estado="validado"; toast("Pressupost validat al complet ✓");
