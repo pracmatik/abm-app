@@ -671,10 +671,35 @@ function editCell(td){
         correccion:`tècnic ${ME.email} → ${v} €/u`}).then(()=>{});
     }
     if(["precio_unitario","margen_pct","precio_industrial"].includes(f)) l._touched=true;   // marca coneixement humà per a l'aprenentatge
+    const eraIA=["auto","proposta"].includes(l.estado), canviat=(f==="precio_unitario"&&v!=null&&v!==prevPrice);   // ha sobreescrit un preu de l'IA?
     Object.assign(l,upd); toast(f==="precio_industrial"?"Preu rebut desat ✓ — ara posa el marge":"Desat ✓"); renderDetall();
+    if(eraIA&&canviat) askMotiu(l);   // captura el CRITERI (el "per què"), opcional i saltable
   };
   inp.addEventListener("keydown",e=>{ if(e.key==="Enter")save(); if(e.key==="Escape")cancel(); });
   inp.addEventListener("blur",save);
+}
+// Captura del "per què" d'Idoia quan sobreescriu un preu de l'IA (estil formulari de traspàs GTA, però en viu i per partida).
+// Opcional i saltable: el motiu viatja pegat al preu après i reapareix a la propera obra semblant.
+function askMotiu(l){
+  if(document.querySelector(".overlay")) return;   // no acumular modals
+  const ov=document.createElement("div"); ov.className="overlay";
+  ov.innerHTML=`<div class="modal">
+    <h3>Per què aquest preu?</h3>
+    <p class="sub">Opcional. Si expliques el criteri (per què el de la base no valia, un acabat o mida concreta…), el sistema ho recordarà i ho mostrarà a la propera obra semblant. Així el teu criteri no es perd.</p>
+    <textarea id="mtInput" rows="3" style="width:100%;box-sizing:border-box;font:inherit;padding:9px;border:1px solid #d1d5db;border-radius:8px" placeholder="Ex.: la base era acabat estàndard; aquí és gres porcelànic de gran format"></textarea>
+    <div class="row"><button class="btn ghost" id="mtSkip">Ara no</button><button class="btn" id="mtSave">Desa el motiu</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener("click",e=>{ if(e.target===ov) close(); });
+  $("#mtSkip",ov).addEventListener("click",close);
+  $("#mtSave",ov).addEventListener("click",()=>{
+    const v=$("#mtInput",ov).value.trim();
+    if(v){ l._motiu=v; toast("Motiu desat ✓ — s'aprendrà amb la partida quan la validis"); }
+    close();
+  });
+  const ta=$("#mtInput",ov); ta.focus();
+  ta.addEventListener("keydown",e=>{ if(e.key==="Escape")close(); if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))$("#mtSave",ov).click(); });
 }
 function bindRow(td){ td.addEventListener("click",()=>editCell(td),{once:true}); }
 async function validarLinia(id){
@@ -692,7 +717,7 @@ async function validarLinia(id){
   // i té preu positiu → l'afegim a la base (fn `aprende`) perquè el motor la proposi a la següent obra. Best-effort.
   if((l._touched||prevEstado==="precio_recibido") && l.precio_unitario!=null && Number(l.precio_unitario)>0){
     sb.functions.invoke("aprende",{body:{descripcion:l.descripcion,precio_unitario:l.precio_unitario,
-      unidad:l.unidad,tipo:CUR.p.tipo,capitulo:l.capitulo,obra:CUR.p.nombre}}).catch(()=>{});
+      unidad:l.unidad,tipo:CUR.p.tipo,capitulo:l.capitulo,obra:CUR.p.nombre,motiu:l._motiu||null}}).catch(()=>{});
   }
   if(CUR.lin.every(x=>x.estado==="validado")){
     await sb.from("proyectos").update({estado:"validado"}).eq("id",CUR.p.id);
