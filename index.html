@@ -671,9 +671,10 @@ function editCell(td){
         correccion:`tècnic ${ME.email} → ${v} €/u`}).then(()=>{});
     }
     if(["precio_unitario","margen_pct","precio_industrial"].includes(f)) l._touched=true;   // marca coneixement humà per a l'aprenentatge
-    const eraIA=["auto","proposta"].includes(l.estado), canviat=(f==="precio_unitario"&&v!=null&&v!==prevPrice);   // ha sobreescrit un preu de l'IA?
+    // decisió humana amb criteri → captura opcional del "per què": sobreescriu un preu de la IA O posa un preu de criteri (gris)
+    const decisio = f==="precio_unitario" && v!=null && ((["auto","proposta"].includes(l.estado) && v!==prevPrice) || l.estado==="a_justificar");
     Object.assign(l,upd); toast(f==="precio_industrial"?"Preu rebut desat ✓ — ara posa el marge":"Desat ✓"); renderDetall();
-    if(eraIA&&canviat) askMotiu(l);   // captura el CRITERI (el "per què"), opcional i saltable
+    if(decisio) askMotiu(l);   // captura el CRITERI (el "per què"), opcional i saltable
   };
   inp.addEventListener("keydown",e=>{ if(e.key==="Enter")save(); if(e.key==="Escape")cancel(); });
   inp.addEventListener("blur",save);
