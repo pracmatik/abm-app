@@ -250,6 +250,9 @@ td.edit input{padding:5px 8px;font-size:13px;width:90px;border-radius:7px}
     <!-- DETALL PROJECTE -->
     <section id="detall" class="hidden"></section>
 
+    <!-- ACTIVITAT (només visible per a l'administrador) -->
+    <section id="activitat" class="hidden"></section>
+
   </div>
 </div>
 
@@ -284,6 +287,7 @@ const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelect
 const esc = s => (s==null?"":String(s)).replace(/[&<>"'\/]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#47;'}[c]));
 const eur = n => (n==null||isNaN(n))?"—":Number(n).toLocaleString("ca-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
 const fmtDate = d => d?new Date(d).toLocaleDateString("ca-ES",{day:"numeric",month:"short",year:"numeric"}):"—";
+const fmtDateHora = d => d?new Date(d).toLocaleString("ca-ES",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
 let toastT=null;
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),3500); }
 const skel = n=>`<div class="skel">${'<div class="row"></div>'.repeat(n||5)}</div>`;
@@ -300,6 +304,7 @@ if(typeof supabase==="undefined"){
   throw new Error("SDK no disponible");
 }
 const sb = supabase.createClient(SUPA_URL, SUPA_ANON);
+const ADMIN_EMAIL="albert@pracmatik.com";   // únic correu que veu el mòdul «Activitat»
 let ME=null, booted=false, recoveryMode=false;
 
 /* ================= Auth ================= */
@@ -392,11 +397,13 @@ function openPwdModal(forced){
 }
 
 /* ================= Home / mòduls ================= */
-const MODULES=[
-  {id:"presu",on:true,icn:"file",t:"Pressupostos",d:"Pugeu plànols i amidaments, valorem la base, preparem les peticions als industrials i valideu el pressupost."},
-];
+function getModules(){
+  const m=[{id:"presu",on:true,icn:"file",t:"Pressupostos",d:"Pugeu plànols i amidaments, valorem la base, preparem les peticions als industrials i valideu el pressupost."}];
+  if(ME&&ME.email===ADMIN_EMAIL) m.push({id:"activitat",on:true,icn:"eye",t:"Activitat",d:"Qui ha entrat i què ha fet cadascú: obres, validacions i correccions. Només tu ho veus."});
+  return m;
+}
 function renderMods(){
-  $("#mods").innerHTML=MODULES.map(m=>`
+  $("#mods").innerHTML=getModules().map(m=>`
     <div class="mod ${m.on?'on':'soon'}" ${m.on?`data-open="${m.id}" role="button" tabindex="0"`:''}>
       <span class="tag ${m.on?'active':'soon'}">${m.on?'Actiu':'Pròximament'}</span>
       <div class="icbox">${ic(m.icn)}</div><h3>${m.t}</h3><p>${m.d}</p>
@@ -405,9 +412,10 @@ function renderMods(){
     el.addEventListener("keydown",e=>{if(e.key==="Enter")openModule(el.dataset.open);}); });
 }
 function crumb(html){ $("#crumb").innerHTML=html; }
-function showHome(){ $("#home").classList.remove("hidden"); $("#presu").classList.add("hidden"); $("#detall").classList.add("hidden"); crumb("Inici"); }
-function showPresu(){ $("#home").classList.add("hidden"); $("#presu").classList.remove("hidden"); $("#detall").classList.add("hidden"); crumb('<a id="cHome">Inici</a> · <b>Pressupostos</b>'); $("#cHome").addEventListener("click",showHome); }
-function openModule(id){ if(id==="presu"){ showPresu(); loadProjectes(); } }
+function showHome(){ $("#home").classList.remove("hidden"); $("#presu").classList.add("hidden"); $("#detall").classList.add("hidden"); $("#activitat").classList.add("hidden"); crumb("Inici"); }
+function showPresu(){ $("#home").classList.add("hidden"); $("#presu").classList.remove("hidden"); $("#detall").classList.add("hidden"); $("#activitat").classList.add("hidden"); crumb('<a id="cHome">Inici</a> · <b>Pressupostos</b>'); $("#cHome").addEventListener("click",showHome); }
+function showActivitat(){ $("#home").classList.add("hidden"); $("#presu").classList.add("hidden"); $("#detall").classList.add("hidden"); $("#activitat").classList.remove("hidden"); crumb('<a id="cHome2">Inici</a> · <b>Activitat</b>'); $("#cHome2").addEventListener("click",showHome); }
+function openModule(id){ if(id==="presu"){ showPresu(); loadProjectes(); } if(id==="activitat"){ showActivitat(); loadActivitat(); } }
 
 /* ================= Tabs ================= */
 $$('#presuTabs button').forEach(b=>b.addEventListener("click",()=>{
@@ -507,7 +515,7 @@ function openNewProj(){
 /* ================= Detall projecte ================= */
 let CUR=null;
 async function openDetall(id){
-  $("#presu").classList.add("hidden"); $("#home").classList.add("hidden");
+  $("#presu").classList.add("hidden"); $("#home").classList.add("hidden"); $("#activitat").classList.add("hidden");
   const el=$("#detall"); el.classList.remove("hidden"); el.innerHTML=skel(6);
   const [{data:p,error:e1},{data:lin,error:e2}]=await Promise.all([
     sb.from("proyectos").select("*").eq("id",id).single(),
@@ -865,6 +873,53 @@ async function loadIndustrials(){
     $("#indCount").textContent=rows.length+" contactes";
   };
   $("#indQ").addEventListener("input",draw); draw();
+}
+
+/* ================= Activitat (només administrador) =================
+   Panell d'auditoria: qui ha entrat i què ha fet cadascú. La fn `admin-actividad` ja verifica
+   al servidor que qui truca és ADMIN_EMAIL (encara que algú manipulés la crida, rep 403). */
+async function loadActivitat(){
+  const el=$("#activitat");
+  el.innerHTML=`<h2>Activitat</h2><p class="cap" style="margin-bottom:16px">Qui ha entrat i què ha fet cadascú. Només tu ho veus.</p>`+skel(6);
+  const {data:{session}}=await sb.auth.getSession();
+  let r=null;
+  try{
+    const resp=await fetch(SUPA_URL+"/functions/v1/admin-actividad",{headers:{Authorization:"Bearer "+session.access_token,apikey:SUPA_ANON}});
+    r=await resp.json();
+  }catch(_){ /* r es queda null → errBox */ }
+  if(!r||!r.ok){ errBox(el,"No s'ha pogut carregar l'activitat",loadActivitat); return; }
+  el.innerHTML=`
+    <h2>Activitat</h2><p class="cap" style="margin-bottom:16px">Qui ha entrat i què ha fet cadascú. Només tu ho veus.</p>
+    <h3 style="margin:18px 0 8px">Accessos</h3>${renderUsuaris(r.usuaris)}
+    <h3 style="margin:22px 0 8px">Obres</h3>${renderObres(r.obres)}
+    <h3 style="margin:22px 0 8px">Validacions per persona</h3>${renderValidacions(r.validacions)}
+    <h3 style="margin:22px 0 8px">Correccions i aprenentatge recent</h3>${renderAprenentatge(r.aprenentatge)}`;
+}
+function renderUsuaris(us){
+  if(!us||!us.length) return `<p class="muted">Sense dades.</p>`;
+  return `<div class="tbl"><table><thead><tr><th>Nom</th><th>Correu</th><th>Últim accés</th></tr></thead><tbody>
+    ${us.map(u=>`<tr><td><b>${esc(u.nom||"—")}</b></td><td>${esc(u.email)}</td>
+      <td>${u.ultim_acces?esc(fmtDateHora(u.ultim_acces)):'<span class="muted">Encara no ha entrat</span>'}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+function renderObres(ob){
+  if(!ob||!ob.length) return `<p class="muted">Encara no hi ha cap obra.</p>`;
+  return `<div class="tbl"><table><thead><tr><th>Obra</th><th>Creada per</th><th>Data</th><th>Estat</th></tr></thead><tbody>
+    ${ob.map(p=>`<tr><td><b>${esc(p.nombre||"—")}</b></td><td>${esc(p.autor||"—")}</td><td>${esc(fmtDate(p.fecha))}</td><td>${badge(EST_PROJ,p.estado)}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+function renderValidacions(vs){
+  if(!vs||!vs.length) return `<p class="muted">Encara no hi ha partides validades.</p>`;
+  return `<div class="tbl"><table><thead><tr><th>Persona</th><th class="num">Partides validades</th><th>Última</th></tr></thead><tbody>
+    ${vs.map(v=>`<tr><td>${esc(v.email)}</td><td class="num">${v.partides}</td><td>${esc(fmtDateHora(v.ultima))}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+function renderAprenentatge(ap){
+  if(!ap||!ap.length) return `<p class="muted">Encara no hi ha correccions registrades.</p>`;
+  return ap.map(a=>`<div class="pet"><div class="pet-h"><b>${esc(a.usuario||"—")}</b></div>
+    <div class="meta">${esc(fmtDateHora(a.fecha))}</div>
+    <p style="margin:0 0 4px;font-size:13.5px">${esc(a.contexto||"")}</p>
+    <p style="margin:0;font-size:13.5px;color:var(--ink2)">${esc(a.correccion||"")}</p></div>`).join("");
 }
 </script>
 </body>
