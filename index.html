@@ -892,7 +892,7 @@ async function loadActivitat(){
     <h2>Activitat</h2><p class="cap" style="margin-bottom:16px">Qui ha entrat i què ha fet cadascú. Només tu ho veus.</p>
     <h3 style="margin:18px 0 8px">Accessos</h3>${renderUsuaris(r.usuaris)}
     <h3 style="margin:22px 0 8px">Obres</h3>${renderObres(r.obres)}
-    <h3 style="margin:22px 0 8px">Validacions per persona</h3>${renderValidacions(r.validacions)}
+    <h3 style="margin:22px 0 8px">Validacions — detall</h3>${renderValidacions(r.validacions)}
     <h3 style="margin:22px 0 8px">Correccions i aprenentatge recent</h3>${renderAprenentatge(r.aprenentatge)}`;
 }
 function renderUsuaris(us){
@@ -909,9 +909,12 @@ function renderObres(ob){
   </tbody></table></div>`;
 }
 function renderValidacions(vs){
-  if(!vs||!vs.length) return `<p class="muted">Encara no hi ha partides validades.</p>`;
-  return `<div class="tbl"><table><thead><tr><th>Persona</th><th class="num">Partides validades</th><th>Última</th></tr></thead><tbody>
-    ${vs.map(v=>`<tr><td>${esc(v.email)}</td><td class="num">${v.partides}</td><td>${esc(fmtDateHora(v.ultima))}</td></tr>`).join("")}
+  if(!vs||!vs.length) return `<p class="muted">Encara ningú de l'equip ha validat cap partida.</p>`;
+  return `<div class="tbl"><table><thead><tr><th>Persona</th><th>Obra</th><th>Partida</th><th class="num">Preu</th><th>Quan</th></tr></thead><tbody>
+    ${vs.map(v=>`<tr><td>${esc(v.validado_por)}</td><td>${esc(v.proyectos?.nombre||"—")}</td>
+     <td>${esc((v.descripcion||"—").slice(0,90))}</td>
+     <td class="num">${v.precio_unitario!=null?eur(v.precio_unitario)+" / "+esc(v.unidad||""):(v.importe!=null?eur(v.importe):"—")}</td>
+     <td>${esc(fmtDateHora(v.validado_at))}</td></tr>`).join("")}
   </tbody></table></div>`;
 }
 function renderAprenentatge(ap){
