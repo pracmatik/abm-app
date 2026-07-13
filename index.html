@@ -704,8 +704,15 @@ function editCell(td){
     } else upd[f]=v;
     const nl={...l,...upd};
     if(nl.medida!=null&&nl.precio_unitario!=null) upd.importe=Math.round(nl.medida*nl.precio_unitario*100)/100;
-    const {error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id);
+    // G1: bloqueig optimista — si algú ha tocat aquesta línia des que la vam carregar, updated_at ja no coincideix
+    // i la condició no fa match a cap fila (0 files tornades) → no sobreescrivim en silenci, avisem i recarreguem.
+    const {data:updRows,error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id).eq("updated_at",l.updated_at).select("id,updated_at");
     if(error){ toast("No s'ha pogut desar. Torna-ho a provar."); restore(); return; }
+    if(!updRows||!updRows.length){
+      toast("Algú ha modificat aquesta partida just ara — recarregant per no sobreescriure-la.");
+      openDetall(CUR.p.id); return;
+    }
+    upd.updated_at=updRows[0].updated_at;
     // aprenentatge: CADA correcció de preu del tècnic (auto/proposta/criteri) = un parell d'entrenament.
     // En 2-3 mesos d'ús acumula prou dades reals per recalibrar/afinar; cada correcció compta.
     if(f==="precio_unitario" && ["proposta","auto","a_justificar"].includes(l.estado) && v!=null && v!==prevPrice){
@@ -754,8 +761,11 @@ async function validarLinia(id){
   else if(l.estado==="a_justificar"){ imp=lineImport(l)??0; }   // nota / partida sense cost o inclosa en una altra → validar a 0
   else { toast("Falta la quantitat o el preu per validar."); return; }
   const upd={estado:"validado",validado_por:ME.email,validado_at:new Date().toISOString(),importe:imp};
-  const {error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id);
+  // G1: bloqueig optimista (vegeu editCell) — evita validar sobre una versió obsoleta de la línia
+  const {data:updRows,error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id).eq("updated_at",l.updated_at).select("id,updated_at");
   if(error){ toast("No s'ha pogut validar. Torna-ho a provar."); return; }
+  if(!updRows||!updRows.length){ toast("Algú ha modificat aquesta partida just ara — recarregant."); openDetall(CUR.p.id); return; }
+  upd.updated_at=updRows[0].updated_at;
   Object.assign(l,upd);
   // BUCLE D'APRENENTATGE: si la línia porta coneixement humà (preu tocat pel tècnic o preu d'industrial rebut)
   // i té preu positiu → l'afegim a la base (fn `aprende`) perquè el motor la proposi a la següent obra. Best-effort.
