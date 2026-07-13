@@ -776,8 +776,24 @@ async function validarLinia(id){
   if(CUR.lin.every(x=>x.estado==="validado")){
     await sb.from("proyectos").update({estado:"validado"}).eq("id",CUR.p.id);
     CUR.p.estado="validado"; toast("Pressupost validat al complet ✓");
+    precisionSnapshot();   // A7: mesurar l'encert real (best-effort, mai bloqueja la UI)
   } else toast("Partida validada ✓");
   renderDetall();
+}
+/* A7: quan una obra queda 100% validada, es mesura quant ha encertat la IA de veritat —
+   compara el que va proposar (estado_original/precio_original, mai es toca) amb el preu final. */
+async function precisionSnapshot(){
+  const lin=CUR.lin;
+  const corregit=l=>Math.abs(Number(l.precio_unitario)-Number(l.precio_original))>0.01;
+  const autoLin=lin.filter(l=>l.estado_original==="auto"&&l.precio_original!=null);
+  const propLin=lin.filter(l=>l.estado_original==="proposta"&&l.precio_original!=null);
+  const nAuto=autoLin.length, nAutoCorr=autoLin.filter(corregit).length;
+  const minuts=CUR.p.fecha?Math.round((Date.now()-new Date(CUR.p.fecha).getTime())/60000):null;
+  sb.from("precision_snapshots").insert({proyecto_id:CUR.p.id,proyecto_nombre:CUR.p.nombre,
+    total_partidas:lin.length,n_auto:nAuto,n_auto_corregits:nAutoCorr,
+    pct_encert_auto:nAuto?Math.round((nAuto-nAutoCorr)/nAuto*1000)/10:null,
+    n_proposta:propLin.length,n_proposta_corregits:propLin.filter(corregit).length,
+    minuts_revisio:minuts}).then(()=>{},()=>{});
 }
 function exportCSV(){
   const {p,lin}=CUR;
@@ -938,7 +954,8 @@ async function loadActivitat(){
     <h3 style="margin:18px 0 8px">Accessos</h3>${renderUsuaris(r.usuaris)}
     <h3 style="margin:22px 0 8px">Obres</h3>${renderObres(r.obres)}
     <h3 style="margin:22px 0 8px">Validacions — detall</h3>${renderValidacions(r.validacions)}
-    <h3 style="margin:22px 0 8px">Correccions i aprenentatge recent</h3>${renderAprenentatge(r.aprenentatge)}`;
+    <h3 style="margin:22px 0 8px">Correccions i aprenentatge recent</h3>${renderAprenentatge(r.aprenentatge)}
+    <h3 style="margin:22px 0 8px">Precisió real de la IA — obra a obra</h3>${renderPrecisio(r.precisio)}`;
 }
 function renderUsuaris(us){
   if(!us||!us.length) return `<p class="muted">Sense dades.</p>`;
@@ -968,6 +985,16 @@ function renderAprenentatge(ap){
     <div class="meta">${esc(fmtDateHora(a.fecha))}</div>
     <p style="margin:0 0 4px;font-size:13.5px">${esc(a.contexto||"")}</p>
     <p style="margin:0;font-size:13.5px;color:var(--ink2)">${esc(a.correccion||"")}</p></div>`).join("");
+}
+/* A7: mesura real (no promesa) de l'encert de la IA — es genera sola quan una obra queda 100% validada */
+function renderPrecisio(ps){
+  if(!ps||!ps.length) return `<p class="muted">Encara no hi ha cap obra 100% validada per mesurar.</p>`;
+  return `<div class="tbl"><table><thead><tr><th>Obra</th><th class="num">Partides</th><th class="num">Auto</th><th class="num">% encert auto</th><th>Data</th></tr></thead><tbody>
+    ${ps.map(s=>`<tr><td>${esc(s.proyecto_nombre||"—")}</td><td class="num">${s.total_partidas??"—"}</td>
+      <td class="num">${s.n_auto??0}</td>
+      <td class="num">${s.pct_encert_auto!=null?s.pct_encert_auto+"%":"—"}</td>
+      <td>${esc(fmtDate(s.created_at))}</td></tr>`).join("")}
+  </tbody></table></div>`;
 }
 </script>
 </body>
