@@ -656,7 +656,10 @@ async function exportExcel(){
     a.download=j.path.split("/").pop(); a.click(); URL.revokeObjectURL(a.href);
     toast("Pressupost Excel descarregat ✓");
   }catch(e){
-    exportCSV(); toast("Excel original no disponible — descarregat CSV provisional.");
+    // Fix 15-07: cap error silenciós — abans QUALSEVOL fallada (fins i tot el candau «el fitxer ha
+    // canviat, torneu a valorar») es tapava amb un CSV genèric sense dir mai el motiu real.
+    const msg=String((e&&e.message)||e).slice(0,220);
+    if(confirm("No s'ha pogut generar l'Excel final:\n\n"+msg+"\n\nVoleu descarregar mentrestant un CSV provisional (sense el format de l'original)?")) exportCSV();
   }finally{ delete btn.dataset.busy; btn.innerHTML=old; }
 }
 function rowLin(l,i){
@@ -744,9 +747,17 @@ function askMotiu(l){
   const close=()=>ov.remove();
   ov.addEventListener("click",e=>{ if(e.target===ov) close(); });
   $("#mtSkip",ov).addEventListener("click",close);
-  $("#mtSave",ov).addEventListener("click",()=>{
+  $("#mtSave",ov).addEventListener("click",async()=>{
     const v=$("#mtInput",ov).value.trim();
-    if(v){ l._motiu=v; toast("Motiu desat ✓ — s'aprendrà amb la partida quan la validis"); }
+    if(!v){ close(); return; }
+    // Fix 15-07: el motiu es desa AL MOMENT a la línia (motiu_tecnic). Abans vivia només en memòria
+    // i un refresc abans de validar el perdia en silenci — amb un toast que mentia dient «desat».
+    const btn=$("#mtSave",ov); btn.disabled=true; btn.textContent="Desant…";
+    const {data:rows,error}=await sb.from("presupuesto_lineas").update({motiu_tecnic:v.slice(0,300)}).eq("id",l.id).select("updated_at");
+    btn.disabled=false; btn.textContent="Desa el motiu";
+    if(error||!rows||!rows.length){ toast("No s'ha pogut desar el motiu — torna-ho a provar."); return; }
+    l._motiu=v; l.motiu_tecnic=v; l.updated_at=rows[0].updated_at;
+    toast("Motiu desat ✓ — s'aprendrà amb la partida quan la validis");
     close();
   });
   const ta=$("#mtInput",ov); ta.focus();
@@ -758,7 +769,14 @@ async function validarLinia(id){
   const prevEstado=l.estado;
   let imp;
   if(l.precio_unitario!=null&&l.medida!=null){ imp=Math.round(l.medida*l.precio_unitario*100)/100; }
-  else if(l.estado==="a_justificar"){ imp=lineImport(l)??0; }   // nota / partida sense cost o inclosa en una altra → validar a 0
+  else if(l.estado==="a_justificar"){
+    imp=lineImport(l);
+    // 0 € NOMÉS amb confirmació explícita (fix 15-07): un 0 silenciós entrava al total i a l'Excel del client
+    if(imp==null){
+      if(!confirm(`Aquesta partida no té preu i quedarà validada amb import 0 €:\n\n«${(l.descripcion||"").slice(0,120)}»\n\nNomés és correcte si és una nota o si va inclosa dins d'una altra partida. Validar a 0 €?`)) return;
+      imp=0;
+    }
+  }
   else { toast("Falta la quantitat o el preu per validar."); return; }
   const upd={estado:"validado",validado_por:ME.email,validado_at:new Date().toISOString(),importe:imp};
   // G1: bloqueig optimista (vegeu editCell) — evita validar sobre una versió obsoleta de la línia
@@ -769,9 +787,16 @@ async function validarLinia(id){
   Object.assign(l,upd);
   // BUCLE D'APRENENTATGE: si la línia porta coneixement humà (preu tocat pel tècnic o preu d'industrial rebut)
   // i té preu positiu → l'afegim a la base (fn `aprende`) perquè el motor la proposi a la següent obra. Best-effort.
-  if((l._touched||prevEstado==="precio_recibido") && l.precio_unitario!=null && Number(l.precio_unitario)>0){
+  // Fix 15-07: el senyal «coneixement humà» també es reconstrueix des de les columnes PERSISTENTS
+  // (precio_original/precio_industrial) — abans vivia només en memòria (_touched) i un refresc entre
+  // corregir i validar feia perdre l'aprenentatge en silenci. Ídem el motiu (ara desat a motiu_tecnic).
+  const preuHuma = l._touched || prevEstado==="precio_recibido" || l.precio_industrial!=null
+    || (l.precio_original==null && l.precio_unitario!=null)
+    || (l.precio_original!=null && l.precio_unitario!=null && Math.abs(Number(l.precio_unitario)-Number(l.precio_original))>0.005);
+  if(preuHuma && l.precio_unitario!=null && Number(l.precio_unitario)>0){
     sb.functions.invoke("aprende",{body:{descripcion:l.descripcion,precio_unitario:l.precio_unitario,
-      unidad:l.unidad,tipo:CUR.p.tipo,capitulo:l.capitulo,obra:CUR.p.nombre,motiu:l._motiu||null}}).catch(()=>{});
+      unidad:l.unidad,tipo:CUR.p.tipo,capitulo:l.capitulo,obra:CUR.p.nombre,
+      motiu:l.motiu_tecnic||l._motiu||null,autor:ME.email}}).catch(()=>{});
   }
   if(CUR.lin.every(x=>x.estado==="validado")){
     await sb.from("proyectos").update({estado:"validado"}).eq("id",CUR.p.id);
