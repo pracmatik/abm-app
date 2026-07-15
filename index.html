@@ -525,12 +525,14 @@ let CUR=null;
 async function openDetall(id){
   $("#presu").classList.add("hidden"); $("#home").classList.add("hidden"); $("#activitat").classList.add("hidden");
   const el=$("#detall"); el.classList.remove("hidden"); el.innerHTML=skel(6);
-  const [{data:p,error:e1},{data:lin,error:e2}]=await Promise.all([
+  const [{data:p,error:e1},{data:lin,error:e2},{data:fls}]=await Promise.all([
     sb.from("proyectos").select("*").eq("id",id).single(),
     sb.from("presupuesto_lineas").select("*").eq("proyecto_id",id).order("orden"),
+    sb.storage.from("projectes").list(id,{limit:200}),   // fitxers REALS a Storage (font de veritat)
   ]);
   if(e1||e2||!p){ errBox(el,"No s'ha pogut obrir el projecte",()=>openDetall(id)); return; }
-  CUR={p,lin:lin||[]};
+  // fora els fitxers interns: l'extracció del PDF i el pressupost generat no els ha pujat l'usuari
+  CUR={p,lin:lin||[],files:(fls||[]).filter(f=>f.name!=="_extraccio.json"&&!f.name.startsWith("PRESSUPOST_"))};
   crumb(`<a id="cHome">Inici</a> · <a id="cPresu">Pressupostos</a> · <b>${esc(p.nombre||"Obra")}</b>`);
   $("#cHome").addEventListener("click",showHome);
   $("#cPresu").addEventListener("click",()=>{el.classList.add("hidden"); showPresu(); loadProjectes();});
@@ -561,6 +563,66 @@ function cuadreCapitols(lin){
     <tr style="font-weight:700"><td>Total</td><td class="num"></td><td class="num"></td><td class="num">${eur(totImp)}</td><td class="num">100%</td></tr>
     </tbody></table></div></details>`;
 }
+/* Fitxers de l'obra: veure'ls, treure'n un si t'has confós d'arxiu, o afegir-ne (petició d'Aleix, 15-07).
+   Esborrar passa SEMPRE per la fn `gestio-obra`: el navegador no té permís de DELETE (disseny de seguretat). */
+const nomNet=n=>String(n).replace(/^\d+_/,"");
+function seccioFitxers(){
+  const fs=CUR.files||[];
+  const mb=f=>(f.metadata&&f.metadata.size)?(f.metadata.size/1048576).toFixed(1)+" MB":"";
+  return `<details class="cuadre" ${CUR.lin.length?"":"open"}>
+    <summary>Fitxers de l'obra (${fs.length})</summary>
+    ${fs.length?`<div class="tbl" style="margin-top:10px"><table><tbody>
+      ${fs.map(f=>`<tr><td>${esc(nomNet(f.name))}</td><td class="num muted">${mb(f)}</td>
+        <td class="num" style="width:1%"><button class="vbtn" data-delf="${esc(f.name)}" style="color:#b91c1c" title="Treure aquest fitxer de l'obra">Treure</button></td></tr>`).join("")}
+    </tbody></table></div>`:`<p class="muted" style="font-size:13px;margin:10px 2px">Aquesta obra no té cap fitxer pujat.</p>`}
+    <div class="toolbar" style="margin-top:10px">
+      <button class="btn ghost sm" id="addFBtn">${ic('up','s')} Afegir fitxers</button>
+      <input type="file" id="addFInput" multiple class="hidden">
+      <span class="count">Si us heu confós d'arxiu: traieu-lo, afegiu el bo i premeu «Re-valorar».</span>
+    </div>
+  </details>`;
+}
+async function crida(fn,body){
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(SUPA_URL+"/functions/v1/"+fn,{method:"POST",
+      headers:{Authorization:"Bearer "+session.access_token,apikey:SUPA_ANON,"Content-Type":"application/json"},
+      body:JSON.stringify(body)});
+    return await r.json();
+  }catch(e){ return {ok:false,error:"Error de connexió. Torna-ho a provar."}; }
+}
+async function esborraFitxer(nom){
+  const avis=CUR.lin.length?"\n\nAquesta obra ja està valorada: si era el fitxer dels amidaments, caldrà prémer «Re-valorar» perquè les partides es refacin.":"";
+  if(!confirm(`Treure «${nomNet(nom)}» d'aquesta obra?${avis}`)) return;
+  const j=await crida("gestio-obra",{accio:"esborra_fitxer",proyecto_id:CUR.p.id,fitxer:nom});
+  if(!j||!j.ok){ toast((j&&j.error)?String(j.error).slice(0,110):"No s'ha pogut treure el fitxer."); return; }
+  toast("Fitxer tret ✓"); openDetall(CUR.p.id);
+}
+async function afegeixFitxers(ev){
+  const files=[...ev.target.files]; if(!files.length) return;
+  const big=files.find(f=>f.size>104857600);
+  if(big){ toast(`«${big.name}» supera els 100 MB.`); return; }
+  toast("Pujant els fitxers…");
+  const llista=[...(CUR.p.archivos||[])];
+  for(const f of files){
+    const clean=f.name.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w.\-]+/g,"_");
+    const {error}=await sb.storage.from("projectes").upload(`${CUR.p.id}/${Date.now()}_${clean}`,f);
+    if(error){ toast(`No s'ha pogut pujar «${f.name}».`); continue; }
+    llista.push({nom:f.name,mida:f.size});
+  }
+  await sb.from("proyectos").update({archivos:llista}).eq("id",CUR.p.id);
+  toast("Fitxers afegits ✓ — premeu «Re-valorar» per processar-los");
+  openDetall(CUR.p.id);
+}
+async function esborraObra(){
+  const nVal=CUR.lin.filter(l=>l.estado==="validado").length;
+  const avis=nVal?`\n\n⚠️ ATENCIÓ: hi ha ${nVal} partides ja validades que es perdran.`:"";
+  if(!confirm(`Eliminar l'obra «${CUR.p.nombre||""}», els seus fitxers i les seves partides?${avis}\n\nAixò no es pot desfer.`)) return;
+  const j=await crida("gestio-obra",{accio:"esborra_obra",proyecto_id:CUR.p.id});
+  if(!j||!j.ok){ toast((j&&j.error)?String(j.error).slice(0,110):"No s'ha pogut eliminar l'obra."); return; }
+  toast("Obra eliminada ✓");
+  $("#detall").classList.add("hidden"); showPresu(); loadProjectes();
+}
 function renderDetall(){
   const {p,lin}=CUR, el=$("#detall");
   const nVal=lin.filter(l=>l.estado==="validado").length,
@@ -581,6 +643,7 @@ function renderDetall(){
      <span style="margin-top:3px">${badge(EST_PROJ,p.estado)}</span></div>
    <div class="dmeta"><span>${esc(fmtDate(p.fecha))}</span>${p.direccion?`<span>${esc(p.direccion)}</span>`:""}${(p.archivos&&p.archivos.length)?`<span>${p.archivos.length} fitxers adjunts</span>`:""}</div>
    ${p.notas?`<div class="ai-note" style="margin:0 0 12px;background:#fff8ef;border-color:#f2d9b0;color:#8a5a12">${ic('info','s')}<span>${esc(p.notas)}</span></div>`:""}
+   ${seccioFitxers()}
    <div class="toolbar" style="margin:2px 0 14px"><button class="btn ghost sm" id="revalBtn">↻ Re-valorar amb l'IA</button><span class="count">Torna a processar els fitxers pujats (refà totes les partides).</span></div>
    <div class="stats">
      <div class="stat"><div class="v">${eur(tot)}</div><div class="k">Total parcial (sense IVA)</div></div>
@@ -602,9 +665,17 @@ function renderDetall(){
      ${complet?"":`<span class="count">Es podrà descarregar quan les ${lin.length} partides estiguin validades.</span>`}
    </div>
    <div class="ai-note">${ic('info','s')}<span><b>Revisió tècnica obligatòria:</b> les partides i imports es proposen automàticament (IA) a partir dels vostres plànols, amidaments i base de preus. Reviseu i valideu cada partida abans d'usar el pressupost comercialment.</span></div>`
-   :`<div class="empty"><div class="icbox">${ic('file')}</div><h3>Valoració en preparació</h3><p>Hem rebut la documentació. Quan la valoració estigui a punt, les partides apareixeran aquí per revisar-les i validar-les.</p></div>`}`;
+   :`<div class="empty"><div class="icbox">${ic('file')}</div><h3>Valoració en preparació</h3><p>Hem rebut la documentació. Quan la valoració estigui a punt, les partides apareixeran aquí per revisar-les i validar-les.</p></div>`}
+   <div class="toolbar" style="margin-top:30px;border-top:1px solid var(--line);padding-top:14px">
+     <button class="btn ghost sm" id="delObra" style="color:#b91c1c">Eliminar aquesta obra</button>
+     <span class="count">Esborra l'obra, els seus fitxers i les seves partides. No es pot desfer.</span>
+   </div>`;
   $("#dBack").addEventListener("click",()=>{el.classList.add("hidden"); showPresu(); loadProjectes();});
   $("#revalBtn")&&$("#revalBtn").addEventListener("click",revalorar);
+  $$("[data-delf]",el).forEach(b=>b.addEventListener("click",()=>esborraFitxer(b.dataset.delf)));
+  $("#addFBtn")&&$("#addFBtn").addEventListener("click",()=>$("#addFInput").click());
+  $("#addFInput")&&$("#addFInput").addEventListener("change",afegeixFitxers);
+  $("#delObra").addEventListener("click",esborraObra);
   if(lin.length){
     $$("[data-val]",el).forEach(b=>b.addEventListener("click",()=>validarLinia(b.dataset.val)));
     $$("[data-unval]",el).forEach(b=>b.addEventListener("click",()=>desvalidarLinia(b.dataset.unval)));
