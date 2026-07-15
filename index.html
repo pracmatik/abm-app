@@ -617,7 +617,9 @@ async function desvalidarLinia(id){
   const l=CUR.lin.find(x=>x.id===id); if(!l) return;
   const estado = l.precio_industrial!=null ? "precio_recibido"
     : (l.origen==="industrial" ? "pendiente_industrial" : (l.origen==="base" ? "proposta" : "a_justificar"));
-  const upd={estado, validado_por:null, validado_at:null};
+  // importe:null → en desfer, l'import antic (p.ex. un 0 € confirmat per error) NO sobreviu:
+  // en re-validar es recalcula des de quantitat × preu (fix auditoria 15-07)
+  const upd={estado, validado_por:null, validado_at:null, importe:null};
   const {error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id);
   if(error){ toast("No s'ha pogut desfer. Torna-ho a provar."); return; }
   Object.assign(l,upd);
@@ -753,9 +755,11 @@ function askMotiu(l){
     // Fix 15-07: el motiu es desa AL MOMENT a la línia (motiu_tecnic). Abans vivia només en memòria
     // i un refresc abans de validar el perdia en silenci — amb un toast que mentia dient «desat».
     const btn=$("#mtSave",ov); btn.disabled=true; btn.textContent="Desant…";
-    const {data:rows,error}=await sb.from("presupuesto_lineas").update({motiu_tecnic:v.slice(0,300)}).eq("id",l.id).select("updated_at");
+    // mateix bloqueig optimista G1 que editCell: mai refrescar el token per sobre d'una edició d'un altre
+    const {data:rows,error}=await sb.from("presupuesto_lineas").update({motiu_tecnic:v.slice(0,300)}).eq("id",l.id).eq("updated_at",l.updated_at).select("updated_at");
     btn.disabled=false; btn.textContent="Desa el motiu";
-    if(error||!rows||!rows.length){ toast("No s'ha pogut desar el motiu — torna-ho a provar."); return; }
+    if(error){ toast("No s'ha pogut desar el motiu — torna-ho a provar."); return; }
+    if(!rows||!rows.length){ close(); toast("Algú ha modificat aquesta partida just ara — recarregant."); openDetall(CUR.p.id); return; }
     l._motiu=v; l.motiu_tecnic=v; l.updated_at=rows[0].updated_at;
     toast("Motiu desat ✓ — s'aprendrà amb la partida quan la validis");
     close();
@@ -771,8 +775,10 @@ async function validarLinia(id){
   if(l.precio_unitario!=null&&l.medida!=null){ imp=Math.round(l.medida*l.precio_unitario*100)/100; }
   else if(l.estado==="a_justificar"){
     imp=lineImport(l);
-    // 0 € NOMÉS amb confirmació explícita (fix 15-07): un 0 silenciós entrava al total i a l'Excel del client
     if(imp==null){
+      // té preu però falta la QUANTITAT → mai oferir el 0 € (deixaria preu ple + import 0 a l'Excel)
+      if(l.precio_unitario!=null){ toast("Aquesta partida té preu però li falta la quantitat — poseu-la abans de validar."); return; }
+      // 0 € NOMÉS amb confirmació explícita (fix 15-07): un 0 silenciós entrava al total i a l'Excel del client
       if(!confirm(`Aquesta partida no té preu i quedarà validada amb import 0 €:\n\n«${(l.descripcion||"").slice(0,120)}»\n\nNomés és correcte si és una nota o si va inclosa dins d'una altra partida. Validar a 0 €?`)) return;
       imp=0;
     }
@@ -791,7 +797,7 @@ async function validarLinia(id){
   // (precio_original/precio_industrial) — abans vivia només en memòria (_touched) i un refresc entre
   // corregir i validar feia perdre l'aprenentatge en silenci. Ídem el motiu (ara desat a motiu_tecnic).
   const preuHuma = l._touched || prevEstado==="precio_recibido" || l.precio_industrial!=null
-    || (l.precio_original==null && l.precio_unitario!=null)
+    || (prevEstado==="a_justificar" && l.precio_unitario!=null)
     || (l.precio_original!=null && l.precio_unitario!=null && Math.abs(Number(l.precio_unitario)-Number(l.precio_original))>0.005);
   if(preuHuma && l.precio_unitario!=null && Number(l.precio_unitario)>0){
     sb.functions.invoke("aprende",{body:{descripcion:l.descripcion,precio_unitario:l.precio_unitario,
