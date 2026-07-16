@@ -13,6 +13,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.min.js" integrity="sha384-DjOvX/sJLsmbMrw4wTvf6l3kiGBjdxyOO6X2MTFwOOXGkjN/mE08BoDzrpaaIjil" crossorigin="anonymous"></script>
+<script>/* Vigia Pracmatik: registre d'errors de client (silencios, top 5/sessio) */
+(function(){try{var U="https://wjpvdigztxbhcmtsqaxz.supabase.co",K="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqcHZkaWd6dHhiaGNtdHNxYXh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MDg3NDYsImV4cCI6MjA5ODQ4NDc0Nn0.9wt-iQj8aQ9MpzQX65jtQVU964Y9F_FJUJPb3vDD3Tw",A="abm-presupuestos",M=5,S={},n=0;
+function rep(m,st){try{if(n>=M)return;var k=String(m||"").slice(0,120);if(!k||S[k])return;S[k]=1;n++;
+var u="";try{u=(window.ME&&(ME.nombre||ME.email))||"";}catch(e){}
+var v="";try{v=window.APP_VERSION||"";}catch(e){}
+fetch(U+"/rest/v1/errores_cliente",{method:"POST",headers:{"apikey":K,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({app:A,version:v,url:location.pathname+location.hash,usuario:String(u).slice(0,80),mensaje:String(m).slice(0,500),stack:String(st||"").slice(0,2000)})}).catch(function(){});
+}catch(e){}}
+window.addEventListener("error",function(e){if(!e||!e.message)return;rep(e.message,(e.error&&e.error.stack)||((e.filename||"")+":"+(e.lineno||"")));},true);
+window.addEventListener("unhandledrejection",function(e){var r=(e&&e.reason)||{};rep(r.message||String(r),r.stack||"");});
+}catch(e){}})();</script>
 <style>
 :root{
   --ink:#111827; --ink2:#374151; --mut:#6b7280; --line:#e7e9ee; --bg:#f6f7f9; --card:#ffffff;
