@@ -543,8 +543,9 @@ async function desfer(){
   const op=UNDO[UNDO.length-1]; if(!op){ return; }
   if(op.tipus==="insert"){
     if(!confirm("Desfer l'última acció: eliminar la partida que has afegit?")) return;
-    const {error}=await sb.from("presupuesto_lineas").delete().eq("id",op.id);
-    if(error){ toast("No s'ha pogut desfer. Torna-ho a provar."); return; }
+    // el client no té permís DELETE (disseny C2) → el borrat passa per la fn gestio-obra (service_role)
+    const j=await crida("gestio-obra",{accio:"esborra_linia",proyecto_id:CUR.p.id,linia_id:op.id});
+    if(!j||!j.ok){ toast((j&&j.error)?String(j.error).slice(0,110):"No s'ha pogut desfer."); return; }
     UNDO.pop(); toast("Desfet ✓"); openDetall(CUR.p.id); return;
   }
   const l=CUR.lin.find(x=>x.id===op.id);
