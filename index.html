@@ -532,8 +532,34 @@ function openNewProj(){
 
 /* ================= Detall projecte ================= */
 let CUR=null;
+/* ===== Desfer (Aleix 21-07: «un botó de marxa enrere per desfer cagades») =====
+   Pila d'operacions de la sessió d'edició d'aquesta obra. Cada operació que canvia una línia guarda
+   ABANS una foto dels seus camps; desfer restaura la foto (o esborra la línia si era una alta nova),
+   sempre amb el bloqueig optimista G1 (si algú l'ha tocat mentrestant, avisa i recarrega). */
+let UNDO=[];
+const UNDO_CAMPS=["estado","precio_unitario","precio_industrial","margen_pct","medida","unidad","importe","validado_por","validado_at","motiu_tecnic"];
+function snapUndo(l,etiqueta){ const prev={}; for(const k of UNDO_CAMPS) prev[k]=l[k]??null; UNDO.push({tipus:"update",id:l.id,prev,etiqueta}); if(UNDO.length>25) UNDO.shift(); }
+async function desfer(){
+  const op=UNDO[UNDO.length-1]; if(!op){ return; }
+  if(op.tipus==="insert"){
+    if(!confirm("Desfer l'última acció: eliminar la partida que has afegit?")) return;
+    const {error}=await sb.from("presupuesto_lineas").delete().eq("id",op.id);
+    if(error){ toast("No s'ha pogut desfer. Torna-ho a provar."); return; }
+    UNDO.pop(); toast("Desfet ✓"); openDetall(CUR.p.id); return;
+  }
+  const l=CUR.lin.find(x=>x.id===op.id);
+  if(!l){ UNDO.pop(); toast("Aquesta partida ja no existeix."); renderDetall(); return; }
+  const {data:rows,error}=await sb.from("presupuesto_lineas").update(op.prev).eq("id",op.id).eq("updated_at",l.updated_at).select("id,updated_at");
+  if(error){ toast("No s'ha pogut desfer. Torna-ho a provar."); return; }
+  if(!rows||!rows.length){ toast("Algú ha modificat aquesta partida just ara — recarregant."); openDetall(CUR.p.id); return; }
+  UNDO.pop(); Object.assign(l,op.prev,{updated_at:rows[0].updated_at});
+  // si desfem una validació i l'obra estava tancada, torna-la a «per validar»
+  if(CUR.p.estado==="validado"&&CUR.lin.some(x=>x.estado!=="validado")){ await sb.from("proyectos").update({estado:"per_validar"}).eq("id",CUR.p.id); CUR.p.estado="per_validar"; }
+  toast(op.etiqueta?`Desfet: ${op.etiqueta} ✓`:"Desfet ✓"); renderDetall();
+}
 async function openDetall(id){
   $("#presu").classList.add("hidden"); $("#home").classList.add("hidden"); $("#activitat").classList.add("hidden");
+  if(!CUR||!CUR.p||CUR.p.id!==id) UNDO=[];   // pila de desfer per obra: canviar d'obra la buida; recarregar la mateixa la manté
   const el=$("#detall"); el.classList.remove("hidden"); el.innerHTML=skel(6);
   const [{data:p,error:e1},{data:lin,error:e2},{data:fls}]=await Promise.all([
     sb.from("proyectos").select("*").eq("id",id).single(),
@@ -670,7 +696,10 @@ function renderDetall(){
    ${cuadreCapitols(lin)}
    <div class="tbl"><table><thead><tr><th>Capítol</th><th>Descripció</th><th>Ud</th><th class="num">Quantitat</th><th class="num">Preu</th><th class="num">Import</th><th>Estat</th><th></th></tr></thead>
     <tbody>${lin.map((l,i)=>rowLin(l,i)).join("")}</tbody></table></div>
-   <div class="toolbar" style="margin-top:12px"><button class="btn ghost sm" id="addPart">+ Afegir partida</button><span class="count">Per a partides que falten (oblidades per la DF, extres…), sense tocar l'Excel original.</span></div>
+   <div class="toolbar" style="margin-top:12px">
+     <button class="btn ghost sm" id="undoBtn" ${UNDO.length?"":"disabled"} title="Desfer l'última acció">↶ Desfer${UNDO.length?` (${UNDO.length})`:""}</button>
+     <button class="btn ghost sm" id="addPart">+ Afegir partida</button>
+     <span class="count">Per a partides que falten (oblidades per la DF, extres…), sense tocar l'Excel original.</span></div>
    <div class="toolbar" style="margin-top:16px">
      <button class="btn" id="dlBtn" ${complet?"":"disabled"} title="${complet?"Descarrega el pressupost":"Disponible quan totes les partides estiguin validades"}">${ic('dl','s')} Descarregar pressupost</button>
      ${complet?"":`<span class="count">Es podrà descarregar quan les ${lin.length} partides estiguin validades.</span>`}
@@ -688,6 +717,7 @@ function renderDetall(){
   $("#addFInput")&&$("#addFInput").addEventListener("change",afegeixFitxers);
   $("#delObra").addEventListener("click",esborraObra);
   $("#addPart")&&$("#addPart").addEventListener("click",afegirPartida);
+  $("#undoBtn")&&$("#undoBtn").addEventListener("click",desfer);
   if(lin.length){
     $$("[data-val]",el).forEach(b=>b.addEventListener("click",()=>validarLinia(b.dataset.val)));
     $$("[data-unval]",el).forEach(b=>b.addEventListener("click",()=>desvalidarLinia(b.dataset.unval)));
@@ -706,6 +736,7 @@ async function desvalidarLinia(id){
   const upd={estado, validado_por:null, validado_at:null, importe:null};
   const {error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id);
   if(error){ toast("No s'ha pogut desfer. Torna-ho a provar."); return; }
+  snapUndo(l,"desfer validació");   // desfer (aquesta operació també es pot desfer)
   Object.assign(l,upd);
   if(CUR.p.estado==="validado"){ await sb.from("proyectos").update({estado:"per_validar"}).eq("id",CUR.p.id); CUR.p.estado="per_validar"; }
   toast("Validació desfeta — pots corregir la línia"); renderDetall();
@@ -820,6 +851,7 @@ function editCell(td){
       toast("Algú ha modificat aquesta partida just ara — recarregant per no sobreescriure-la.");
       openDetall(CUR.p.id); return;
     }
+    snapUndo(l,"canvi de la partida");   // desfer: guardem l'estat PREVI (l encara no té els canvis aplicats)
     upd.updated_at=updRows[0].updated_at;
     // aprenentatge: CADA correcció de preu del tècnic (auto/proposta/criteri) = un parell d'entrenament.
     // En 2-3 mesos d'ús acumula prou dades reals per recalibrar/afinar; cada correcció compta.
@@ -880,6 +912,7 @@ async function validarZero(id){
   const {data:updRows,error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id).eq("updated_at",l.updated_at).select("id,updated_at");
   if(error){ toast("No s'ha pogut validar. Torna-ho a provar."); return; }
   if(!updRows||!updRows.length){ toast("Algú ha modificat aquesta partida just ara — recarregant."); openDetall(CUR.p.id); return; }
+  snapUndo(l,"0 € (compte de tercers)");   // desfer
   upd.updated_at=updRows[0].updated_at; Object.assign(l,upd);
   if(CUR.lin.every(x=>x.estado==="validado")){
     await sb.from("proyectos").update({estado:"validado"}).eq("id",CUR.p.id);
@@ -921,12 +954,13 @@ function afegirPartida(){
     btn.disabled=true; btn.textContent="Afegint…";
     const orden=Math.max(0,...CUR.lin.map(l=>l.orden||0))+1;
     const imp=(qty!=null&&preu!=null)?Math.round(qty*preu*100)/100:null;
-    const {error}=await sb.from("presupuesto_lineas").insert({proyecto_id:CUR.p.id,orden,
+    const {data:nova,error}=await sb.from("presupuesto_lineas").insert({proyecto_id:CUR.p.id,orden,
       capitulo:$("#npCap",ov).value.trim()||null, descripcion:desc, unidad:$("#npUd",ov).value.trim()||null,
       medida:qty, precio_unitario:preu, importe:imp, origen:"manual", estado:"a_justificar",
-      estado_original:"a_justificar", precio_original:null});
+      estado_original:"a_justificar", precio_original:null}).select("id").single();
     btn.disabled=false; btn.textContent="Afegeix";
     if(error){ err.textContent="No s'ha pogut afegir. Torna-ho a provar."; return; }
+    if(nova){ UNDO.push({tipus:"insert",id:nova.id,etiqueta:"afegir partida"}); if(UNDO.length>25) UNDO.shift(); }   // desfer = esborrar-la
     close(); toast("Partida afegida ✓");
     if(CUR.p.estado==="validado"){ await sb.from("proyectos").update({estado:"per_validar"}).eq("id",CUR.p.id); CUR.p.estado="per_validar"; }
     openDetall(CUR.p.id);
@@ -954,6 +988,7 @@ async function validarLinia(id){
   const {data:updRows,error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id).eq("updated_at",l.updated_at).select("id,updated_at");
   if(error){ toast("No s'ha pogut validar. Torna-ho a provar."); return; }
   if(!updRows||!updRows.length){ toast("Algú ha modificat aquesta partida just ara — recarregant."); openDetall(CUR.p.id); return; }
+  snapUndo(l,"validació");   // desfer
   upd.updated_at=updRows[0].updated_at;
   Object.assign(l,upd);
   // BUCLE D'APRENENTATGE: si la línia porta coneixement humà (preu tocat pel tècnic o preu d'industrial rebut)
