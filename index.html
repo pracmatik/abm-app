@@ -670,6 +670,7 @@ function renderDetall(){
    ${cuadreCapitols(lin)}
    <div class="tbl"><table><thead><tr><th>Capítol</th><th>Descripció</th><th>Ud</th><th class="num">Quantitat</th><th class="num">Preu</th><th class="num">Import</th><th>Estat</th><th></th></tr></thead>
     <tbody>${lin.map((l,i)=>rowLin(l,i)).join("")}</tbody></table></div>
+   <div class="toolbar" style="margin-top:12px"><button class="btn ghost sm" id="addPart">+ Afegir partida</button><span class="count">Per a partides que falten (oblidades per la DF, extres…), sense tocar l'Excel original.</span></div>
    <div class="toolbar" style="margin-top:16px">
      <button class="btn" id="dlBtn" ${complet?"":"disabled"} title="${complet?"Descarrega el pressupost":"Disponible quan totes les partides estiguin validades"}">${ic('dl','s')} Descarregar pressupost</button>
      ${complet?"":`<span class="count">Es podrà descarregar quan les ${lin.length} partides estiguin validades.</span>`}
@@ -686,10 +687,12 @@ function renderDetall(){
   $("#addFBtn")&&$("#addFBtn").addEventListener("click",()=>$("#addFInput").click());
   $("#addFInput")&&$("#addFInput").addEventListener("change",afegeixFitxers);
   $("#delObra").addEventListener("click",esborraObra);
+  $("#addPart")&&$("#addPart").addEventListener("click",afegirPartida);
   if(lin.length){
     $$("[data-val]",el).forEach(b=>b.addEventListener("click",()=>validarLinia(b.dataset.val)));
     $$("[data-unval]",el).forEach(b=>b.addEventListener("click",()=>desvalidarLinia(b.dataset.unval)));
-    $$("td.edit",el).forEach(td=>td.addEventListener("click",()=>editCell(td)));
+    $$("[data-zero]",el).forEach(b=>b.addEventListener("click",()=>validarZero(b.dataset.zero)));
+    $$("[data-f]",el).forEach(td=>td.addEventListener("click",()=>editCell(td)));   // celes editables (preu, quantitat, unitat, marge, industrial)
     if(complet) $("#dlBtn").addEventListener("click",exportExcel);
   }
 }
@@ -747,37 +750,52 @@ async function exportExcel(){
 }
 function rowLin(l,i){
   const imp=lineImport(l);
-  const canEditQty=l.estado!=="validado";
-  const priceCell = l.estado==="precio_recibido"
-    ? `<td class="num edit" data-f="margen_pct" data-id="${esc(l.id)}" title="Preu industrial ${eur(l.precio_industrial)} — clica per posar el marge">${l.margen_pct!=null?esc(String(l.margen_pct))+" % → "+eur(l.precio_unitario):'<span class="muted">posa el marge %</span>'}</td>`
-    : (l.estado==="pendiente_industrial"
-      ? `<td class="num edit" data-f="precio_industrial" data-id="${esc(l.id)}" title="Clica per introduir el preu que us ha passat l'industrial"><span class="muted">+ preu rebut</span></td>`
-      : `<td class="num ${l.estado!=='validado'?'edit':''}" ${l.estado!=='validado'?`data-f="precio_unitario" data-id="${esc(l.id)}" title="Clica per editar"`:""}>${eur(l.precio_unitario)}</td>`);
+  const nv=l.estado!=="validado";   // no validada → editable
+  // Columna Preu segons estat. Per a industrials, el preu de l'industrial és SEMPRE re-editable
+  // (Aleix 21-07: si t'equivoques ja no podies tornar-hi) i sempre es pot posar un PREU DIRECTE sense marge.
+  let priceCell;
+  if(l.estado==="precio_recibido"){
+    priceCell=`<td class="num">
+      <div class="edit" data-f="precio_industrial" data-id="${esc(l.id)}" title="Preu de l'industrial — clica per corregir-lo">ind: ${eur(l.precio_industrial)}</div>
+      <div class="edit" data-f="margen_pct" data-id="${esc(l.id)}" title="Marge % — clica per posar-lo o canviar-lo">${l.margen_pct!=null?esc(String(l.margen_pct))+"% → "+eur(l.precio_unitario):'<span class="muted">+ marge %</span>'}</div></td>`;
+  } else if(l.estado==="pendiente_industrial"){
+    priceCell=`<td class="num">
+      <div class="edit" data-f="precio_industrial" data-id="${esc(l.id)}" title="Preu que us passa l'industrial (després hi poseu marge)">${l.precio_unitario!=null?eur(l.precio_unitario):'<span class="muted">+ preu industrial</span>'}</div>
+      <div class="edit" data-f="precio_unitario" data-id="${esc(l.id)}" title="O poseu directament el vostre preu, sense marge" style="font-size:11px;margin-top:2px"><span class="muted">o preu directe</span></div></td>`;
+  } else {
+    priceCell=`<td class="num ${nv?'edit':''}" ${nv?`data-f="precio_unitario" data-id="${esc(l.id)}" title="Clica per editar"`:""}>${eur(l.precio_unitario)}</td>`;
+  }
+  // Validar: visible si no validada i (no és industrial buida). «0 €» per a partides que van per compte de tercers.
+  const potValidar=nv&&(l.estado!=="pendiente_industrial"||l.precio_unitario!=null);
+  const accions=l.estado==="validado"
+    ? `<button class="vbtn" data-unval="${esc(l.id)}" style="color:#6b7280" title="Desfer la validació per corregir">↺ Desfer</button>`
+    : `${potValidar?`<button class="vbtn" data-val="${esc(l.id)}">✓ Validar</button>`:""}<button class="vbtn" data-zero="${esc(l.id)}" style="color:#9ca3af;font-size:11px;margin-left:4px" title="No la pressupostem nosaltres (va per compte de tercers, p.ex. interiorisme/AP) — validar a 0 €">0 €</button>`;
   return `<tr>
     <td class="cap">${esc(l.capitulo||"")}</td>
     <td>${esc(l.descripcion||"")}</td>
-    <td>${esc(l.unidad||"")}</td>
-    <td class="num ${canEditQty?'edit':''}" ${canEditQty?`data-f="medida" data-id="${esc(l.id)}" title="Clica per editar"`:""}>${l.medida!=null?Number(l.medida).toLocaleString("ca-ES"):"—"}</td>
+    <td class="${nv?'edit':''}" ${nv?`data-f="unidad" data-id="${esc(l.id)}" title="Clica per canviar la unitat (m², ml, PA, ud…)"`:""}>${esc(l.unidad||"—")}</td>
+    <td class="num ${nv?'edit':''}" ${nv?`data-f="medida" data-id="${esc(l.id)}" title="Clica per editar"`:""}>${l.medida!=null?Number(l.medida).toLocaleString("ca-ES"):"—"}</td>
     ${priceCell}
     <td class="num"><b>${eur(imp)}</b></td>
     <td>${badge(EST_LIN,l.estado)}${(l.estado==="proposta"||l.estado==="auto")&&l.confianza!=null?`<div class="cap" style="margin-top:3px" title="Confiança de la IA en aquest preu">conf. ${Math.round(l.confianza*100)}%</div>`:""}${l.gremi_sugerido?`<div class="cap" style="margin-top:3px">→ ${esc(l.gremi_sugerido)}</div>`:""}${l.motiu?`<div class="cap" style="margin-top:3px;color:#b5670f;white-space:normal;max-width:180px">⚠ ${esc(l.motiu)}</div>`:""}</td>
-    <td>${l.estado!=="validado"&&l.estado!=="pendiente_industrial"?`<button class="vbtn" data-val="${esc(l.id)}">✓ Validar</button>`:(l.estado==="validado"?`<button class="vbtn" data-unval="${esc(l.id)}" style="color:#6b7280" title="Desfer la validació per corregir">↺ Desfer</button>`:"")}</td>
+    <td style="white-space:nowrap">${accions}</td>
   </tr>`;
 }
 function editCell(td){
   if(td.querySelector("input")) return;
   const f=td.dataset.f, id=td.dataset.id, l=CUR.lin.find(x=>x.id===id);
+  const esTexte=f==="unidad";   // la unitat és text lliure (m², ml, PA, ud…), la resta números
   const cur=f==="margen_pct"?(l.margen_pct??""):(l[f]??"");
   td.dataset.prev=td.innerHTML;
-  td.innerHTML=`<input type="number" step="0.01" value="${esc(String(cur))}">`;
+  td.innerHTML=esTexte?`<input type="text" maxlength="8" value="${esc(String(cur))}" style="width:66px">`:`<input type="number" step="0.01" value="${esc(String(cur))}">`;
   const inp=td.querySelector("input"); inp.focus(); inp.select();
   let closed=false;
   const restore=()=>{ td.innerHTML=td.dataset.prev; bindRow(td); };
   const cancel=()=>{ if(closed)return; closed=true; restore(); };
   const save=async()=>{
     if(closed) return; closed=true;
-    const v=inp.value===""?null:Number(inp.value);
-    if(v!=null&&(isNaN(v)||v<0)){ restore(); return; }
+    const v=esTexte?(inp.value.trim()||null):(inp.value===""?null:Number(inp.value));
+    if(!esTexte&&v!=null&&(isNaN(v)||v<0)){ restore(); return; }
     const prevPrice=l.precio_unitario;   // per a l'aprenentatge
     const upd={};
     if(f==="margen_pct"){
@@ -849,6 +867,68 @@ function askMotiu(l){
   ta.addEventListener("keydown",e=>{ if(e.key==="Escape")close(); if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))$("#mtSave",ov).click(); });
 }
 function bindRow(td){ td.addEventListener("click",()=>editCell(td),{once:true}); }
+// «0 €»: partida que NO pressuposta ABM perquè va per compte de tercers (interiorisme/AP) — Aleix 21-07.
+// Valida a 0 € sense necessitar quantitat ni preu, amb confirmació explícita (mai un 0 silenciós).
+async function validarZero(id){
+  const l=CUR.lin.find(x=>x.id===id); if(!l) return;
+  if(!confirm(`Marcar «${(l.descripcion||"").slice(0,110)}» com que NO la pressupostem nosaltres (va per compte de tercers, p.ex. interiorisme/AP) i validar-la a 0 €?`)) return;
+  const upd={estado:"validado",validado_por:ME.email,validado_at:new Date().toISOString(),precio_unitario:0,importe:0};
+  const {data:updRows,error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id).eq("updated_at",l.updated_at).select("id,updated_at");
+  if(error){ toast("No s'ha pogut validar. Torna-ho a provar."); return; }
+  if(!updRows||!updRows.length){ toast("Algú ha modificat aquesta partida just ara — recarregant."); openDetall(CUR.p.id); return; }
+  upd.updated_at=updRows[0].updated_at; Object.assign(l,upd);
+  if(CUR.lin.every(x=>x.estado==="validado")){
+    await sb.from("proyectos").update({estado:"validado"}).eq("id",CUR.p.id);
+    CUR.p.estado="validado"; toast("Pressupost validat al complet ✓"); precisionSnapshot();
+  } else toast("Partida a 0 € (compte de tercers) ✓");
+  renderDetall();
+}
+// Afegir una partida NOVA a mà (Aleix 21-07: sovint falten partides que ha oblidat la DF; no cal
+// tornar a modificar l'Excel original ni perdre la feina feta al programa).
+function afegirPartida(){
+  if(document.querySelector(".overlay")) return;
+  const caps=[...new Set(CUR.lin.map(l=>l.capitulo).filter(Boolean))];
+  const ov=document.createElement("div"); ov.className="overlay";
+  ov.innerHTML=`<div class="modal">
+    <h3>Afegir una partida</h3>
+    <p class="sub">Per a partides que falten (oblidades per la DF, extres…). S'afegeix al pressupost sense tocar l'Excel original.</p>
+    <label>Capítol</label>
+    <input id="npCap" list="npCapList" placeholder="p. ex. Revestiments" value="${caps.length?esc(caps[caps.length-1]):""}">
+    <datalist id="npCapList">${caps.map(c=>`<option value="${esc(c)}">`).join("")}</datalist>
+    <label>Descripció *</label><input id="npDesc" placeholder="Descripció de la partida">
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label>Unitat</label><input id="npUd" placeholder="m², ml, ud, PA…"></div>
+      <div style="flex:1"><label>Quantitat</label><input id="npQty" type="number" step="0.01" placeholder="0"></div>
+      <div style="flex:1"><label>Preu (€/u)</label><input id="npPreu" type="number" step="0.01" placeholder="opcional"></div>
+    </div>
+    <div class="err" id="npErr"></div>
+    <div class="row"><button class="btn ghost" id="npCancel">Cancel·la</button><button class="btn" id="npAdd">Afegeix</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener("click",e=>{if(e.target===ov)close();});
+  $("#npCancel",ov).addEventListener("click",close);
+  $("#npAdd",ov).addEventListener("click",async()=>{
+    const desc=$("#npDesc",ov).value.trim(), err=$("#npErr",ov), btn=$("#npAdd",ov);
+    if(!desc){ err.textContent="Posa una descripció."; return; }
+    const qty=$("#npQty",ov).value===""?null:Number($("#npQty",ov).value);
+    const preu=$("#npPreu",ov).value===""?null:Number($("#npPreu",ov).value);
+    if((qty!=null&&(isNaN(qty)||qty<0))||(preu!=null&&(isNaN(preu)||preu<0))){ err.textContent="Quantitat o preu no vàlids."; return; }
+    btn.disabled=true; btn.textContent="Afegint…";
+    const orden=Math.max(0,...CUR.lin.map(l=>l.orden||0))+1;
+    const imp=(qty!=null&&preu!=null)?Math.round(qty*preu*100)/100:null;
+    const {error}=await sb.from("presupuesto_lineas").insert({proyecto_id:CUR.p.id,orden,
+      capitulo:$("#npCap",ov).value.trim()||null, descripcion:desc, unidad:$("#npUd",ov).value.trim()||null,
+      medida:qty, precio_unitario:preu, importe:imp, origen:"manual", estado:"a_justificar",
+      estado_original:"a_justificar", precio_original:null});
+    btn.disabled=false; btn.textContent="Afegeix";
+    if(error){ err.textContent="No s'ha pogut afegir. Torna-ho a provar."; return; }
+    close(); toast("Partida afegida ✓");
+    if(CUR.p.estado==="validado"){ await sb.from("proyectos").update({estado:"per_validar"}).eq("id",CUR.p.id); CUR.p.estado="per_validar"; }
+    openDetall(CUR.p.id);
+  });
+  $("#npDesc",ov).focus();
+}
 async function validarLinia(id){
   const l=CUR.lin.find(x=>x.id===id); if(!l) return;
   const prevEstado=l.estado;
