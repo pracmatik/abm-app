@@ -804,7 +804,11 @@ function editCell(td){
       upd.precio_unitario=Math.round(Number(l.precio_industrial)*(1+v/100)*100)/100;
     } else if(f==="precio_industrial"){
       if(v==null){ restore(); return; }
-      upd.precio_industrial=v; upd.estado="precio_recibido";   // preu rebut → falta el marge
+      upd.precio_industrial=v;
+      // si ja hi havia marge, corregir el preu de l'industrial RECALCULA el preu final (Aleix 21-07:
+      // abans quedava amb el preu vell). Si encara no hi ha marge, passa a «preu rebut» perquè el posin.
+      if(l.margen_pct!=null) upd.precio_unitario=Math.round(v*(1+Number(l.margen_pct)/100)*100)/100;
+      else upd.estado="precio_recibido";
     } else upd[f]=v;
     const nl={...l,...upd};
     if(nl.medida!=null&&nl.precio_unitario!=null) upd.importe=Math.round(nl.medida*nl.precio_unitario*100)/100;
