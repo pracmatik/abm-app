@@ -723,6 +723,7 @@ function renderDetall(){
     $$("[data-val]",el).forEach(b=>b.addEventListener("click",()=>validarLinia(b.dataset.val)));
     $$("[data-unval]",el).forEach(b=>b.addEventListener("click",()=>desvalidarLinia(b.dataset.unval)));
     $$("[data-zero]",el).forEach(b=>b.addEventListener("click",()=>validarZero(b.dataset.zero)));
+    $$("[data-web]",el).forEach(b=>b.addEventListener("click",()=>cercaPreuWeb(b.dataset.web)));
     $$("[data-f]",el).forEach(td=>td.addEventListener("click",()=>editCell(td)));   // celes editables (preu, quantitat, unitat, marge, industrial)
     if(complet) $("#dlBtn").addEventListener("click",exportExcel);
   }
@@ -780,6 +781,74 @@ async function exportExcel(){
     if(confirm("No s'ha pogut generar l'Excel final:\n\n"+msg+"\n\nVoleu descarregar mentrestant un CSV provisional (sense el format de l'original)?")) exportCSV();
   }finally{ delete btn.dataset.busy; btn.innerHTML=old; }
 }
+/* ---------- CERCA DE PREU A INTERNET · Fase 1 (petició d'Aleix 21-07, resposta seva 27-07) ----------
+   El sistema NO baixa cap preu d'internet: prepara la cerca ja feta i el tècnic clica, mira i decideix.
+   Per què així i no automàtic: un preu tret d'una web pot ser correcte i ser MENTIDA igualment, perquè
+   el PVP de botiga pot ser el doble del que ABM paga a l'instal·lador. Un número que sembla real és
+   justament el que no volem. Aquí no hi ha número fabricat: hi ha enllaços i una persona decidint.
+   Aleix (27-07): «no tenim una marca predominant, són referències que ens passen els arquitectes» →
+   el detector llegeix la REFERÈNCIA del text de la partida, no una llista tancada de marques nostra.
+   Aleix (27-07): «penso que hauria de ser preu PVP» → es busca PVP i es diu que ho és, sempre. */
+const NORMES=/^(ITC|UNE|EN|CTE|DB|RD|NTE|RC|HA|HL|CEM|IP|RAL)[-\s]?/i;   // ITC-BT-52 és una norma, no un producte
+const MARQUES_PROD=/\b(roca|grohe|geberit|hansgrohe|duravit|villeroy|noken|ramon\s*soler|jacob\s*delafon|teka|bosch|siemens|balay|porcelanosa|silestone|dekton|neolith|k\.?line|technal|cortizo|velux|daikin|mitsubishi|vaillant|junkers|baxi|simon|jung|legrand|schneider)\b/i;
+// referència de producte: codi que barreja lletres i xifres i té 6+ caràcters (p. ex. A5A841FC00)
+const REF_PROD=/\b(?=[A-Z0-9-]{6,}\b)(?=[A-Z-]*\d)(?=[0-9-]*[A-Z])[A-Z0-9-]{6,}\b/g;
+// «llana de roca» / «lana de roca» és el MATERIAL aïllant, no la marca Roca de sanitaris.
+// Sense això, un aïllament de façana sortia com si fos un producte de Roca per buscar a internet.
+const ROCA_MATERIAL=/\b(llana|lana|fibra|panell?|placa|panel)\s+de\s+roca\b/i;
+function refProducte(desc){
+  const t=String(desc||"");
+  const refs=(t.match(REF_PROD)||[]).filter(r=>!NORMES.test(r));
+  let marca=(t.match(MARQUES_PROD)||[])[0]||"";
+  if(/^roca$/i.test(marca)&&ROCA_MATERIAL.test(t)) marca="";
+  if(!refs.length&&!marca) return null;                 // sense model ni referència no hi ha res a buscar
+  return { ref:refs[0]||"", marca, consulta:[marca,refs[0]||"",!refs.length?t.slice(0,60):""].filter(Boolean).join(" ").trim() };
+}
+function cercaPreuWeb(id){
+  if(document.querySelector(".overlay")) return;
+  const l=CUR.lin.find(x=>x.id===id); if(!l) return;
+  const d=refProducte(l.descripcion); if(!d) return;
+  const q=encodeURIComponent(d.consulta);
+  const enllacos=[
+    ["Google Shopping (ES)",`https://www.google.com/search?tbm=shop&hl=ca&gl=ES&q=${q}`],
+    ["Cerca general + preu",`https://www.google.com/search?hl=ca&gl=ES&q=${q}+preu`],
+    ["Només botigues .es",`https://www.google.com/search?hl=ca&gl=ES&q=${q}+comprar+site%3A.es`],
+  ];
+  const ov=document.createElement("div"); ov.className="overlay";
+  ov.innerHTML=`<div class="modal">
+    <h3>Buscar preu a internet</h3>
+    <p class="sub">${esc(l.descripcion||"").slice(0,120)}</p>
+    <p class="sub"><b>Detectat:</b> ${esc([d.marca,d.ref].filter(Boolean).join(" · "))||"—"}</p>
+    <div style="display:flex;flex-direction:column;gap:6px;margin:10px 0">
+      ${enllacos.map(([nom,url])=>`<a href="${url}" target="_blank" rel="noopener noreferrer" class="btn ghost" style="text-align:left;text-decoration:none">🔎 ${nom}</a>`).join("")}
+    </div>
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:9px;font-size:12px;color:#9a3412;margin-bottom:10px">
+      El que trobaràs és <b>PVP de catàleg (amb IVA)</b>, no el preu que us fa l'instal·lador — sol ser més alt. Comproveu-lo abans de donar-lo per bo.
+    </div>
+    <label>Preu PVP trobat (€/u) — opcional</label>
+    <input id="cwPreu" type="number" step="0.01" placeholder="deixa-ho buit si no el trobes">
+    <div class="err" id="cwErr"></div>
+    <div class="row"><button class="btn ghost" id="cwCancel">Tanca</button><button class="btn" id="cwSave">Desa aquest preu</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener("click",e=>{if(e.target===ov)close();});
+  $("#cwCancel",ov).addEventListener("click",close);
+  $("#cwSave",ov).addEventListener("click",async()=>{
+    const err=$("#cwErr",ov), btn=$("#cwSave",ov), v=Number($("#cwPreu",ov).value);
+    if(!isFinite(v)||v<=0){ err.textContent="Posa un preu més gran que 0, o tanca la finestra."; return; }
+    btn.disabled=true;
+    // d'on surt el preu queda ESCRIT a la línia: qui el miri després ha de saber que és un PVP de web i de quin dia
+    const marca=`preu PVP de web${d.ref?` (${d.ref})`:""} · ${new Date().toLocaleDateString("ca-ES")} · confirmeu-lo`;
+    const upd={precio_unitario:v, motiu:marca};
+    const {data:rows,error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id).eq("updated_at",l.updated_at).select("id,updated_at");
+    if(error||!rows?.length){ btn.disabled=false; err.textContent=error?error.message:"Algú altre ha tocat aquesta partida. Refresca i torna-hi."; return; }
+    snapUndo(l,"preu trobat a internet");     // el botó de desfer també cobreix això
+    upd.updated_at=rows[0].updated_at; Object.assign(l,upd);
+    close(); toast("Preu desat ✓ — marcat com a PVP a confirmar"); renderDetall();
+  });
+}
+
 function rowLin(l,i){
   const imp=lineImport(l);
   const nv=l.estado!=="validado";   // no validada → editable
@@ -802,9 +871,12 @@ function rowLin(l,i){
   const accions=l.estado==="validado"
     ? `<button class="vbtn" data-unval="${esc(l.id)}" style="color:#6b7280" title="Desfer la validació per corregir">↺ Desfer</button>`
     : `${potValidar?`<button class="vbtn" data-val="${esc(l.id)}">✓ Validar</button>`:""}<button class="vbtn" data-zero="${esc(l.id)}" style="color:#9ca3af;font-size:11px;margin-left:4px" title="No la pressupostem nosaltres (va per compte de tercers, p.ex. interiorisme/AP) — validar a 0 €">0 €</button>`;
+  // Cerca web: només si la partida porta model/referència I encara no té preu. Si ja en té, no molesta.
+  const dRef=(nv&&l.precio_unitario==null)?refProducte(l.descripcion):null;
+  const btnWeb=dRef?`<div><button class="vbtn" data-web="${esc(l.id)}" style="color:#0369a1;font-size:11px;padding:0;margin-top:3px" title="Aquesta partida porta model/referència: prepara la cerca a internet del PVP">🔎 buscar preu (${esc(dRef.ref||dRef.marca)})</button></div>`:"";
   return `<tr>
     <td class="cap">${esc(l.capitulo||"")}</td>
-    <td>${esc(l.descripcion||"")}</td>
+    <td>${esc(l.descripcion||"")}${btnWeb}</td>
     <td class="${nv?'edit':''}" ${nv?`data-f="unidad" data-id="${esc(l.id)}" title="Clica per canviar la unitat (m², ml, PA, ud…)"`:""}>${esc(l.unidad||"—")}</td>
     <td class="num ${nv?'edit':''}" ${nv?`data-f="medida" data-id="${esc(l.id)}" title="Clica per editar"`:""}>${l.medida!=null?Number(l.medida).toLocaleString("ca-ES"):"—"}</td>
     ${priceCell}
