@@ -1196,12 +1196,24 @@ async function loadPeticions(){
 
 /* ================= Base de preus ================= */
 let PREUS=null, preusLoading=null, preusLimit=200;
-function fetchPreus(){
-  if(PREUS) return Promise.resolve(PREUS);
-  if(!preusLoading) preusLoading=sb.from("precios_base")
-    .select("capitulo,partida,descripcion,unidad,precio_cliente,es_industrial,tipo")
-    .order("tipo").order("capitulo").limit(2000)
-    .then(({data,error})=>{ preusLoading=null; if(error) throw error; PREUS=data||[]; return PREUS; });
+// Es demana PER PÀGINES: el servidor només torna 1.000 files per resposta, faci el que faci el
+// «limit». Amb 328 partides hi cabien totes i no es notava; en passar a 3.092, l'ordre per tipus
+// feia que «obra_nueva» s'emportés les 1.000 senceres i la pestanya REFORMA sortís BUIDA
+// (avisat per l'Aleix el 27-07). Demanar-ho de mil en mil és l'única manera de tenir-ho tot.
+async function fetchPreus(){
+  if(PREUS) return PREUS;
+  if(!preusLoading) preusLoading=(async()=>{
+    const tot=[];
+    for(let desde=0;;desde+=1000){
+      const {data,error}=await sb.from("precios_base")
+        .select("capitulo,partida,descripcion,unidad,precio_cliente,es_industrial,tipo")
+        .order("tipo").order("capitulo").range(desde,desde+999);
+      if(error){ preusLoading=null; throw error; }
+      tot.push(...(data||[]));
+      if(!data||data.length<1000) break;
+    }
+    preusLoading=null; PREUS=tot; return PREUS;
+  })();
   return preusLoading;
 }
 let fTipus="tots", fOrigen="tots";
