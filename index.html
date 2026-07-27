@@ -509,9 +509,10 @@ function openNewProj(){
   $("#pjSave",ov).addEventListener("click", async()=>{
     const nom=$("#pjNom",ov).value.trim(), err=$("#pjErr",ov), btn=$("#pjSave",ov);
     if(!nom){err.textContent="Posa un nom a l'obra.";return;}
-    const big=FILES.find(f=>f.size>104857600);
-    if(big){err.textContent=`«${big.name}» supera els 100 MB.`;return;}
+    const rev=revisaFitxers(FILES);                    // B5: dir-ho ABANS, no petar després
+    if(rev.error){ err.textContent=rev.error; return; }
     btn.disabled=true; err.textContent="";
+    if(rev.avis) toast(rev.avis);
     btn.textContent="Creant…";
     const {data:proj,error}=await sb.from("proyectos").insert({nombre:nom,tipo:$("#pjTipus",ov).value,direccion:$("#pjAdr",ov).value.trim()||null,estado:"rebut",autor:ME.email}).select().single();
     if(error){ btn.disabled=false; btn.textContent="Crea el pressupost"; err.textContent="No s'ha pogut crear. Torna-ho a provar."; return; }
@@ -528,6 +529,32 @@ function openNewProj(){
     ov.remove(); toast("Obra creada ✓ — entra a la cua de valoració");
     loadProjectes();
   });
+}
+
+/* ---------- B5 · Revisió dels fitxers ABANS de pujar-los ----------
+   El motor només sap llegir amidaments d'un .xlsx o d'un .pdf. Fins ara es podia pujar
+   qualsevol cosa i l'obra petava després amb un «parse» que no explicava res: el tècnic
+   havia pujat un .xls antic o un Word i no ho sabia. Aquí es diu al moment, en cristià.
+   No es bloqueja pujar plànols o documentació: es bloqueja quedar-se SENSE cap fitxer
+   d'amidaments, que és l'únic cas en què l'obra no pot sortir. */
+const LLEGIBLES=[".xlsx",".pdf"];                       // el que motor-valoracio obre de veritat
+const ext=n=>{const i=String(n||"").lastIndexOf("."); return i<0?"":n.slice(i).toLowerCase();};
+function revisaFitxers(files){
+  const buit=files.find(f=>f.size===0);
+  if(buit) return {error:`«${buit.name}» està buit (0 bytes). Torna a exportar-lo.`};
+  const gros=files.find(f=>f.size>104857600);
+  if(gros) return {error:`«${gros.name}» supera els 100 MB.`};
+  const llegibles=files.filter(f=>LLEGIBLES.includes(ext(f.name)));
+  const vells=files.filter(f=>ext(f.name)===".xls");    // el cas traïdor: sembla Excel i no es llegeix
+  if(!llegibles.length){
+    return {error: vells.length
+      ? `«${vells[0].name}» és un Excel antic (.xls) i el programa no el sap llegir. Obre'l i desa'l com a .xlsx.`
+      : `Cap dels fitxers és un .xlsx o un .pdf, i els amidaments han de venir en un dels dos. Afegeix l'estat d'amidaments.`};
+  }
+  const ignorats=files.filter(f=>!LLEGIBLES.includes(ext(f.name)));
+  return {error:null, avis: ignorats.length
+    ? `${ignorats.length} fitxer(s) es desen com a documentació però no es llegiran (només .xlsx i .pdf): ${ignorats.map(f=>f.name).join(", ").slice(0,90)}`
+    : null};
 }
 
 /* ================= Detall projecte ================= */
@@ -637,8 +664,14 @@ async function esborraFitxer(nom){
 }
 async function afegeixFitxers(ev){
   const files=[...ev.target.files]; if(!files.length) return;
-  const big=files.find(f=>f.size>104857600);
-  if(big){ toast(`«${big.name}» supera els 100 MB.`); return; }
+  // B5: en afegir fitxers a una obra que JA en té, no es pot exigir amidaments altre cop
+  // (potser només afegeixen plànols). Es comprova mida i fitxers buits, i s'avisa del que no es llegirà.
+  const buit=files.find(f=>f.size===0);
+  if(buit){ toast(`«${buit.name}» està buit (0 bytes).`); return; }
+  const gros=files.find(f=>f.size>104857600);
+  if(gros){ toast(`«${gros.name}» supera els 100 MB.`); return; }
+  const ignorats=files.filter(f=>!LLEGIBLES.includes(ext(f.name)));
+  if(ignorats.length) toast(`${ignorats.length} fitxer(s) es desen però no es llegiran (només .xlsx i .pdf).`);
   toast("Pujant els fitxers…");
   const llista=[...(CUR.p.archivos||[])];
   for(const f of files){
@@ -1253,13 +1286,56 @@ async function loadActivitat(){
     r=await resp.json();
   }catch(_){ /* r es queda null → errBox */ }
   if(!r||!r.ok){ errBox(el,"No s'ha pogut carregar l'activitat",loadActivitat); return; }
+  const salut=await llegeixSalut();
   el.innerHTML=`
     <h2>Activitat</h2><p class="cap" style="margin-bottom:16px">Qui ha entrat i què ha fet cadascú. Només tu ho veus.</p>
-    <h3 style="margin:18px 0 8px">Accessos</h3>${renderUsuaris(r.usuaris)}
+    <h3 style="margin:18px 0 8px">Salut del sistema</h3>${renderSalut(salut)}
+    <h3 style="margin:22px 0 8px">Accessos</h3>${renderUsuaris(r.usuaris)}
     <h3 style="margin:22px 0 8px">Obres</h3>${renderObres(r.obres)}
     <h3 style="margin:22px 0 8px">Validacions — detall</h3>${renderValidacions(r.validacions)}
     <h3 style="margin:22px 0 8px">Correccions i aprenentatge recent</h3>${renderAprenentatge(r.aprenentatge)}
     <h3 style="margin:22px 0 8px">Precisió real de la IA — obra a obra</h3>${renderPrecisio(r.precisio)}`;
+}
+/* ---------- F2 · Panell de salut (només administrador) ----------
+   El sentinella ja vigilava cada nit (base de preus, obres penjades, deriva del matching…) i el
+   backup ja es feia, però el resultat es quedava dins de motor_logs i no ho mirava ningú: t'havies
+   d'enterar entrant a la base de dades. Aquí es llegeix el que JA hi ha desat — cap crida nova,
+   cap cost, cap permís nou — i es diu en una línia si el sistema està bé o no.
+   Regla: si fa massa que no corre, també és una alerta (un vigilant mut sembla salut). */
+async function llegeixSalut(){
+  const desde=new Date(Date.now()-8*864e5).toISOString();
+  const [logs,obres]=await Promise.all([
+    sb.from("motor_logs").select("created_at,origen,ok,error").in("origen",["sentinella","backup"]).order("created_at",{ascending:false}).limit(40),
+    sb.from("proyectos").select("id,nombre,estado,valoracio_inici").in("estado",["necessita_revisio","en_valoracio"]),
+  ]);
+  const ultim=o=>(logs.data||[]).find(l=>l.origen===o)||null;
+  const errsRecents=(logs.data||[]).filter(l=>!l.ok&&l.created_at>=desde).length;
+  return {sentinella:ultim("sentinella"), backup:ultim("backup"), obres:obres.data||[], errsRecents};
+}
+function renderSalut(s){
+  if(!s) return `<p class="muted">No s'ha pogut llegir l'estat.</p>`;
+  const hores=t=>t?Math.round((Date.now()-new Date(t))/36e5):null;
+  const files=[];
+  const hS=hores(s.sentinella?.created_at), hB=hores(s.backup?.created_at);
+  // vigilància: mut més de 48 h ja és un problema per si sol
+  files.push(hS==null?["❌","Vigilància","No s'ha executat mai."]
+    : hS>48?["⚠️","Vigilància",`Fa ${Math.round(hS/24)} dies que no passa. Hauria de passar cada nit.`]
+    : s.sentinella.ok?["✅","Vigilància",`Tot correcte (fa ${hS} h).`]
+    : ["⚠️","Vigilància",s.sentinella.error||"Ha trobat coses a mirar."]);
+  files.push(hB==null?["❌","Còpia de seguretat","No se n'ha fet mai."]
+    : hB>192?["⚠️","Còpia de seguretat",`L'última fa ${Math.round(hB/24)} dies.`]
+    : ["✅","Còpia de seguretat",`Feta fa ${hB<24?hB+" h":Math.round(hB/24)+" dies"}.`]);
+  const penj=s.obres.filter(o=>o.estado==="en_valoracio");
+  const rev=s.obres.filter(o=>o.estado==="necessita_revisio");
+  files.push(penj.length?["⚠️","Obres encallades",`${penj.length}: ${penj.map(o=>o.nombre).join(", ").slice(0,70)}`]:["✅","Obres encallades","Cap."]);
+  files.push(rev.length?["⚠️","Obres per revisar a mà",`${rev.length}: ${rev.map(o=>o.nombre).join(", ").slice(0,70)}`]:["✅","Obres per revisar a mà","Cap."]);
+  files.push(s.errsRecents?["⚠️","Errors aquests 8 dies",`${s.errsRecents} execucions han fallat.`]:["✅","Errors aquests 8 dies","Cap."]);
+  const mal=files.filter(f=>f[0]!=="✅").length;
+  return `<div style="border:1px solid ${mal?"#fed7aa":"#bbf7d0"};background:${mal?"#fff7ed":"#f0fdf4"};border-radius:10px;padding:12px 14px;margin-bottom:6px">
+    <b>${mal?`${mal} cosa/es a mirar`:"Tot en ordre"}</b></div>
+    <div class="tbl"><table><tbody>${files.map(([i,t,d])=>
+      `<tr><td style="width:26px">${i}</td><td style="width:190px"><b>${esc(t)}</b></td><td>${esc(d)}</td></tr>`).join("")}
+    </tbody></table></div>`;
 }
 function renderUsuaris(us){
   if(!us||!us.length) return `<p class="muted">Sense dades.</p>`;
