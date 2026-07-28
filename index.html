@@ -737,7 +737,8 @@ function renderDetall(){
    <div class="toolbar" style="margin-top:16px">
      <button class="btn" id="dlBtn" ${complet?"":"disabled"} title="${complet?"Descarrega el pressupost":"Disponible quan totes les partides estiguin validades"}">${ic('dl','s')} Descarregar pressupost</button>
      ${complet?"":`<button class="btn ghost" id="dlDraftBtn" title="Baixa'l ara amb el que hi ha: les partides que encara no has revisat hi surten marcades com a PENDENT, no amb un preu">${ic('dl','s')} Descarregar esborrany</button>`}
-     ${complet?"":`<span class="count">Es podrà descarregar quan les ${lin.length} partides estiguin validades.</span>`}
+     ${complet?"":`<button class="btn ghost" id="allTercers" title="Les partides que no pressuposteu vosaltres (interiorisme, DF, tercers) es marquen totes de cop. Al pressupost hi surten com «A valorar per tercers», fora del total.">Marcar les ${lin.filter(x=>x.estado!=="validado").length} pendents com a de tercers</button>`}
+     ${complet?"":`<span class="count">El definitiu es genera quan totes les partides estan decidides: amb preu o marcades com a de tercers.</span>`}
    </div>
    <div class="ai-note">${ic('info','s')}<span><b>Revisió tècnica obligatòria:</b> les partides i imports es proposen automàticament (IA) a partir dels vostres plànols, amidaments i base de preus. Reviseu i valideu cada partida abans d'usar el pressupost comercialment.</span></div>`
    :`<div class="empty"><div class="icbox">${ic('file')}</div><h3>Valoració en preparació</h3><p>Hem rebut la documentació. Quan la valoració estigui a punt, les partides apareixeran aquí per revisar-les i validar-les.</p></div>`}
@@ -761,6 +762,7 @@ function renderDetall(){
     $$("[data-f]",el).forEach(td=>td.addEventListener("click",()=>editCell(td)));   // celes editables (preu, quantitat, unitat, marge, industrial)
     if(complet) $("#dlBtn").addEventListener("click",()=>exportExcel(false));
     const dd=$("#dlDraftBtn"); if(dd) dd.addEventListener("click",()=>exportExcel(true));
+    const at=$("#allTercers"); if(at) at.addEventListener("click",totesDeTercers);
   }
 }
 /* Desfer validació: torna la línia a l'estat que li toca segons l'origen (per corregir sense refer tota l'obra) */
@@ -1025,6 +1027,33 @@ function askMotiu(l){
 function bindRow(td){ td.addEventListener("click",()=>editCell(td),{once:true}); }
 // «0 €»: partida que NO pressuposta ABM perquè va per compte de tercers (interiorisme/AP) — Aleix 21-07.
 // Valida a 0 € sense necessitar quantitat ni preu, amb confirmació explícita (mai un 0 silenciós).
+/* Marcar d'una tacada totes les partides que queden per decidir com «les valora un tercer».
+   28-07: l'Aleix té 33 partides d'interiorisme a una obra; fer-ho d'una en una (amb confirmació
+   cada cop) no és una eina, és un càstig — i sense això no podia arribar mai al definitiu. */
+async function totesDeTercers(){
+  const pend=CUR.lin.filter(l=>l.estado!=="validado");
+  if(!pend.length) return;
+  if(!confirm(`Marcar les ${pend.length} partides que queden com que NO les pressuposteu vosaltres?\n\n`
+    +`Són les que valora un tercer (interiorisme, DF...). Al pressupost hi sortiran com «A valorar per tercers», fora del total.\n\n`
+    +`Si alguna SÍ és vostra, val més posar-hi el preu abans i marcar només la resta.`)) return;
+  const btn=$("#allTercers"); if(btn){ btn.disabled=true; btn.textContent="Marcant…"; }
+  let fets=0, xocs=0;
+  for(const l of pend){
+    const upd={estado:"validado",validado_por:ME.email,validado_at:new Date().toISOString(),precio_unitario:null,importe:null};
+    // mateix bloqueig optimista que a la resta: si algú ha tocat la línia, es deixa i s'informa
+    const {data:rows,error}=await sb.from("presupuesto_lineas").update(upd).eq("id",l.id).eq("updated_at",l.updated_at).select("id,updated_at");
+    if(error||!rows?.length){ xocs++; continue; }
+    snapUndo(l,"marcada com a de tercers");
+    upd.updated_at=rows[0].updated_at; Object.assign(l,upd); fets++;
+  }
+  if(CUR.lin.every(x=>x.estado==="validado")){
+    await sb.from("proyectos").update({estado:"validado"}).eq("id",CUR.p.id);
+    CUR.p.estado="validado";
+  }
+  toast(xocs?`${fets} marcades · ${xocs} no s'han pogut (algú les ha tocat). Refresca i torna-hi.`
+            :`${fets} partides marcades com a de tercers ✓ — ja pots descarregar el pressupost`);
+  openDetall(CUR.p.id);
+}
 async function validarZero(id){
   const l=CUR.lin.find(x=>x.id===id); if(!l) return;
   if(!confirm(`Marcar «${(l.descripcion||"").slice(0,110)}» com que NO la pressupostem nosaltres?\n\nVa per compte de tercers (interiorisme, DF, AP...). Al pressupost hi sortirà com «A valorar per tercers», fora del total — no a 0 €, que semblaria que és gratis.`)) return;
