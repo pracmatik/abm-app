@@ -816,7 +816,14 @@ async function exportExcel(esborrany){
     // Fix 15-07: cap error silenciós — abans QUALSEVOL fallada (fins i tot el candau «el fitxer ha
     // canviat, torneu a valorar») es tapava amb un CSV genèric sense dir mai el motiu real.
     const msg=String((e&&e.message)||e).slice(0,220);
-    if(confirm("No s'ha pogut generar l'Excel final:\n\n"+msg+"\n\nVoleu descarregar mentrestant un CSV provisional (sense el format de l'original)?")) exportCSV();
+    // 28-07: quan el motiu és que falten partides per validar, ABANS s'oferia un CSV pelat i
+    // l'Aleix se'l va baixar pensant que era el pressupost («un excés super cutre que no puc
+    // entregar»). Per a aquest cas ja hi ha l'esborrany, que conserva el format del document.
+    // El CSV es reserva per a l'avaria de veritat (full massa gran per omplir).
+    if(/sense validar|per revisar/i.test(msg)){
+      alert("Encara falten partides per validar, així que el pressupost DEFINITIU no es pot generar.\n\n"
+        +"Fes servir el botó «Descarregar esborrany»: manté el format del document i marca les partides que falten.");
+    } else if(confirm("No s'ha pogut generar l'Excel:\n\n"+msg+"\n\nVoleu descarregar mentrestant un CSV provisional (una taula simple, sense format)?")) exportCSV();
   }finally{ delete btn.dataset.busy; btn.innerHTML=old; }
 }
 /* ---------- CERCA DE PREU A INTERNET · Fase 1 (petició d'Aleix 21-07, resposta seva 27-07) ----------
