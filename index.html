@@ -786,7 +786,9 @@ async function revalorar(){
     const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(SUPA_URL+"/functions/v1/motor-valoracio",{method:"POST",
       headers:{Authorization:"Bearer "+session.access_token,apikey:SUPA_ANON,"Content-Type":"application/json"},
-      body:JSON.stringify({proyecto_id:CUR.p.id, esborrany:!!esborrany})});
+      // format ABM: el document surt amb el seu membret i la seva maqueta, que es el que
+      // entreguen al client (Aleix 28-07: «el necessito amb la imatge i els logos nostres»)
+      body:JSON.stringify({proyecto_id:CUR.p.id, esborrany:!!esborrany, format:"abm"})});
     const j=await r.json();
     toast(j.fase==="visio" ? `Lectura del PDF feta (${j.partides} partides) — torna a prémer «Re-valorar» per completar la valoració`
       : j.ok?`Revalorat ✓ · ${j.partides} partides`:("No s'ha pogut: "+(j.error||j.motiu||"revisa els fitxers")).slice(0,90));
@@ -915,7 +917,7 @@ function rowLin(l,i){
   const potValidar=nv&&(l.estado!=="pendiente_industrial"||l.precio_unitario!=null);
   const accions=l.estado==="validado"
     ? `<button class="vbtn" data-unval="${esc(l.id)}" style="color:#6b7280" title="Desfer la validació per corregir">↺ Desfer</button>`
-    : `${potValidar?`<button class="vbtn" data-val="${esc(l.id)}">✓ Validar</button>`:""}<button class="vbtn" data-zero="${esc(l.id)}" style="color:#9ca3af;font-size:11px;margin-left:4px" title="No la pressupostem nosaltres (va per compte de tercers, p.ex. interiorisme/AP) — validar a 0 €">0 €</button>`;
+    : `${potValidar?`<button class="vbtn" data-val="${esc(l.id)}">✓ Validar</button>`:""}<button class="vbtn" data-zero="${esc(l.id)}" style="color:#9ca3af;font-size:11px;margin-left:4px" title="No la pressupostem nosaltres: la valora l'interiorisme, la DF o un tercer. Al pressupost hi surt com «A valorar per tercers», fora del total.">és de tercers</button>`;
   // Cerca web: només si la partida porta model/referència I encara no té preu. Si ja en té, no molesta.
   const dRef=(nv&&l.precio_unitario==null)?refProducte(l.descripcion):null;
   const btnWeb=dRef?`<div><button class="vbtn" data-web="${esc(l.id)}" style="color:#0369a1;font-size:11px;padding:0;margin-top:3px" title="Aquesta partida porta model/referència: prepara la cerca a internet del PVP">🔎 buscar preu (${esc(dRef.ref||dRef.marca)})</button></div>`:"";
@@ -1025,17 +1027,20 @@ function bindRow(td){ td.addEventListener("click",()=>editCell(td),{once:true});
 // Valida a 0 € sense necessitar quantitat ni preu, amb confirmació explícita (mai un 0 silenciós).
 async function validarZero(id){
   const l=CUR.lin.find(x=>x.id===id); if(!l) return;
-  if(!confirm(`Marcar «${(l.descripcion||"").slice(0,110)}» com que NO la pressupostem nosaltres (va per compte de tercers, p.ex. interiorisme/AP) i validar-la a 0 €?`)) return;
-  const upd={estado:"validado",validado_por:ME.email,validado_at:new Date().toISOString(),precio_unitario:0,importe:0};
+  if(!confirm(`Marcar «${(l.descripcion||"").slice(0,110)}» com que NO la pressupostem nosaltres?\n\nVa per compte de tercers (interiorisme, DF, AP...). Al pressupost hi sortirà com «A valorar per tercers», fora del total — no a 0 €, que semblaria que és gratis.`)) return;
+  // 28-07: abans es desava a 0 € i al document sortia «0,00 €», que el client llegeix com a gratuït.
+  // Ara es desa SENSE preu: la partida queda decidida (compta com a revisada) però el document
+  // diu clarament que la valora un tercer i no l'inclou al total.
+  const upd={estado:"validado",validado_por:ME.email,validado_at:new Date().toISOString(),precio_unitario:null,importe:null};
   const {data:updRows,error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id).eq("updated_at",l.updated_at).select("id,updated_at");
   if(error){ toast("No s'ha pogut validar. Torna-ho a provar."); return; }
   if(!updRows||!updRows.length){ toast("Algú ha modificat aquesta partida just ara — recarregant."); openDetall(CUR.p.id); return; }
-  snapUndo(l,"0 € (compte de tercers)");   // desfer
+  snapUndo(l,"marcada com a compte de tercers");   // desfer
   upd.updated_at=updRows[0].updated_at; Object.assign(l,upd);
   if(CUR.lin.every(x=>x.estado==="validado")){
     await sb.from("proyectos").update({estado:"validado"}).eq("id",CUR.p.id);
     CUR.p.estado="validado"; toast("Pressupost validat al complet ✓"); precisionSnapshot();
-  } else toast("Partida a 0 € (compte de tercers) ✓");
+  } else toast("Marcada: la valora un tercer ✓");
   renderDetall();
 }
 // Afegir una partida NOVA a mà (Aleix 21-07: sovint falten partides que ha oblidat la DF; no cal
