@@ -736,6 +736,7 @@ function renderDetall(){
      <span class="count">Per a partides que falten (oblidades per la DF, extres…), sense tocar l'Excel original.</span></div>
    <div class="toolbar" style="margin-top:16px">
      <button class="btn" id="dlBtn" ${complet?"":"disabled"} title="${complet?"Descarrega el pressupost":"Disponible quan totes les partides estiguin validades"}">${ic('dl','s')} Descarregar pressupost</button>
+     ${complet?"":`<button class="btn ghost" id="dlDraftBtn" title="Baixa'l ara amb el que hi ha: les partides que encara no has revisat hi surten marcades com a PENDENT, no amb un preu">${ic('dl','s')} Descarregar esborrany</button>`}
      ${complet?"":`<span class="count">Es podrà descarregar quan les ${lin.length} partides estiguin validades.</span>`}
    </div>
    <div class="ai-note">${ic('info','s')}<span><b>Revisió tècnica obligatòria:</b> les partides i imports es proposen automàticament (IA) a partir dels vostres plànols, amidaments i base de preus. Reviseu i valideu cada partida abans d'usar el pressupost comercialment.</span></div>`
@@ -758,7 +759,8 @@ function renderDetall(){
     $$("[data-zero]",el).forEach(b=>b.addEventListener("click",()=>validarZero(b.dataset.zero)));
     $$("[data-web]",el).forEach(b=>b.addEventListener("click",()=>cercaPreuWeb(b.dataset.web)));
     $$("[data-f]",el).forEach(td=>td.addEventListener("click",()=>editCell(td)));   // celes editables (preu, quantitat, unitat, marge, industrial)
-    if(complet) $("#dlBtn").addEventListener("click",exportExcel);
+    if(complet) $("#dlBtn").addEventListener("click",()=>exportExcel(false));
+    const dd=$("#dlDraftBtn"); if(dd) dd.addEventListener("click",()=>exportExcel(true));
   }
 }
 /* Desfer validació: torna la línia a l'estat que li toca segons l'origen (per corregir sense refer tota l'obra) */
@@ -784,7 +786,7 @@ async function revalorar(){
     const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(SUPA_URL+"/functions/v1/motor-valoracio",{method:"POST",
       headers:{Authorization:"Bearer "+session.access_token,apikey:SUPA_ANON,"Content-Type":"application/json"},
-      body:JSON.stringify({proyecto_id:CUR.p.id})});
+      body:JSON.stringify({proyecto_id:CUR.p.id, esborrany:!!esborrany})});
     const j=await r.json();
     toast(j.fase==="visio" ? `Lectura del PDF feta (${j.partides} partides) — torna a prémer «Re-valorar» per completar la valoració`
       : j.ok?`Revalorat ✓ · ${j.partides} partides`:("No s'ha pogut: "+(j.error||j.motiu||"revisa els fitxers")).slice(0,90));
@@ -792,8 +794,11 @@ async function revalorar(){
   openDetall(CUR.p.id);
 }
 /* Excel real: la funció del núvol omple el document original amb els preus validats */
-async function exportExcel(){
-  const btn=$("#dlBtn"); if(!btn||btn.dataset.busy) return;
+async function exportExcel(esborrany){
+  // esborrany=true: el que Aleix va demanar el 28-07 — poder baixar-se'l encara que faltin partides
+  // per revisar (n'hi ha que les valora la DF i ell no hi pot posar preu mai). El definitiu segueix
+  // demanant-ho tot validat: el que canvia és que ara hi ha una sortida honesta mentrestant.
+  const btn=$(esborrany?"#dlDraftBtn":"#dlBtn"); if(!btn||btn.dataset.busy) return;
   btn.dataset.busy="1"; const old=btn.innerHTML; btn.innerHTML="Generant l'Excel…";
   try{
     const {data:{session}}=await sb.auth.getSession();
@@ -806,7 +811,7 @@ async function exportExcel(){
     if(error) throw error;
     const a=document.createElement("a"); a.href=URL.createObjectURL(data);
     a.download=j.path.split("/").pop(); a.click(); URL.revokeObjectURL(a.href);
-    toast("Pressupost Excel descarregat ✓");
+    toast(esborrany?"Esborrany descarregat ✓ — les partides sense revisar hi surten marcades":"Pressupost Excel descarregat ✓");
   }catch(e){
     // Fix 15-07: cap error silenciós — abans QUALSEVOL fallada (fins i tot el candau «el fitxer ha
     // canviat, torneu a valorar») es tapava amb un CSV genèric sense dir mai el motiu real.
