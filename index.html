@@ -897,7 +897,10 @@ async function revalorar(){
       // entreguen al client (Aleix 28-07: «el necessito amb la imatge i els logos nostres»)
       body:JSON.stringify({proyecto_id:CUR.p.id, esborrany:!!esborrany, format:"abm"})});
     const j=await r.json();
-    toast(j.fase==="visio" ? `Lectura del PDF feta (${j.partides} partides) — torna a prémer «Re-valorar» per completar la valoració`
+    // «ja s'està valorant» no és una fallada: és que el vigilant ha agafat l'obra fa un moment.
+    // Dir-ho amb calma evita que es piqui el botó tres cops seguits pensant que no va.
+    toast(j.ja_en_curs ? "Aquesta obra ja s'està valorant ara mateix. Espera un minut i refresca."
+      : j.fase==="visio" ? `Lectura del PDF feta (${j.partides} partides) — torna a prémer «Re-valorar» per completar la valoració`
       : j.ok?`Revalorat ✓ · ${j.partides} partides`:("No s'ha pogut: "+(j.error||j.motiu||"revisa els fitxers")).slice(0,90));
   }catch(e){ toast("Error de connexió en revalorar. Torna-ho a provar."); }
   openDetall(CUR.p.id);
