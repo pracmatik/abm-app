@@ -1057,6 +1057,20 @@ function editCell(td){
     if(closed) return; closed=true;
     const v=esTexte?(inp.value.trim()||null):(inp.value===""?null:Number(inp.value));
     if(!esTexte&&v!=null&&(isNaN(v)||v<0)){ restore(); return; }
+    /* Un dit de més al teclat no pot acabar en el pressupost del client. Provat el 29-07-2026:
+       escrivint 99999999 en un preu, el TOTAL de l'obra passava a 11.500 MILIONS d'euros i
+       ningú deia res. No es bloqueja (qui mana és qui pressuposta, cl. 4.4): es demana
+       confirmació quan el número se surt de l'escala de la mateixa obra. */
+    if(!esTexte&&v!=null&&(f==="precio_unitario"||f==="precio_industrial")){
+      const altres=CUR.lin.filter(x=>x.id!==id&&x.precio_unitario!=null&&Number(x.precio_unitario)>0)
+                          .map(x=>Number(x.precio_unitario));
+      if(altres.length>=5){
+        const max=Math.max(...altres);
+        if(v>max*25&&!confirm(`${eur(v)} és unes ${Math.round(v/max)} vegades el preu més alt d'aquesta obra (${eur(max)}).\n\nÉs correcte?`)){
+          restore(); return;
+        }
+      }
+    }
     const prevPrice=l.precio_unitario;   // per a l'aprenentatge
     const upd={};
     if(f==="margen_pct"){
