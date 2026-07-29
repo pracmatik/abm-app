@@ -656,14 +656,16 @@ function barraTaula(lin){
              ["pendiente_industrial","Pendents d'industrial"],["precio_recibido","Preu rebut"],
              ["auto","Preu base"],["validado","Validades"]]
     .filter(([v])=>!v||lin.some(l=>l.estado===v));
-  return `<div class="toolbar" style="margin:14px 0 8px;gap:8px;flex-wrap:wrap">
+  // 44px d'alt mínim: és la mida que es pot tocar amb el dit a una tauleta d'obra sense fallar
+  const ctrl="flex:0 0 auto;min-height:44px;padding:9px 11px;border:1px solid var(--bd);border-radius:8px;font:inherit;background:#fff";
+  return `<div class="toolbar" style="margin:14px 0 8px;gap:8px;flex-wrap:wrap;align-items:center">
     <input id="qLin" type="search" placeholder="Cercar dins de les ${lin.length} partides…"
            aria-label="Cercar partides per descripció, capítol o codi" value="${esc(VISTA.q)}"
-           style="min-width:230px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font:inherit">
-    <select id="fEstat" aria-label="Filtrar per estat" style="padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font:inherit">
+           style="${ctrl};flex:1 1 240px;max-width:340px">
+    <select id="fEstat" aria-label="Filtrar per estat" style="${ctrl}">
       ${ops.map(([v,t])=>`<option value="${v}" ${VISTA.estat===v?"selected":""}>${t}</option>`).join("")}
     </select>
-    <select id="fOrdre" aria-label="Ordenar les partides" style="padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font:inherit">
+    <select id="fOrdre" aria-label="Ordenar les partides" style="${ctrl}">
       <option value="obra" ${VISTA.ordre==="obra"?"selected":""}>Ordre del pressupost</option>
       <option value="risc" ${VISTA.ordre==="risc"?"selected":""}>Primer el que més importa</option>
     </select>
