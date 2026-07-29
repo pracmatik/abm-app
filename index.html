@@ -657,11 +657,13 @@ function barraTaula(lin){
              ["auto","Preu base"],["validado","Validades"]]
     .filter(([v])=>!v||lin.some(l=>l.estado===v));
   // 44px d'alt mínim: és la mida que es pot tocar amb el dit a una tauleta d'obra sense fallar
-  const ctrl="flex:0 0 auto;min-height:44px;padding:9px 11px;border:1px solid var(--bd);border-radius:8px;font:inherit;background:#fff";
+  // width:auto és imprescindible: la fulla d'estil posa width:100% a tot input i select,
+  // i sense això cada control ocupava una fila sencera ell sol.
+  const ctrl="flex:0 0 auto;width:auto;min-height:44px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff";
   return `<div class="toolbar" style="margin:14px 0 8px;gap:8px;flex-wrap:wrap;align-items:center">
     <input id="qLin" type="search" placeholder="Cercar dins de les ${lin.length} partides…"
            aria-label="Cercar partides per descripció, capítol o codi" value="${esc(VISTA.q)}"
-           style="${ctrl};flex:1 1 240px;max-width:340px">
+           style="${ctrl};flex:1 1 240px;width:auto;max-width:340px">
     <select id="fEstat" aria-label="Filtrar per estat" style="${ctrl}">
       ${ops.map(([v,t])=>`<option value="${v}" ${VISTA.estat===v?"selected":""}>${t}</option>`).join("")}
     </select>
