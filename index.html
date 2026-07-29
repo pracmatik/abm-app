@@ -589,14 +589,15 @@ async function openDetall(id){
   $("#presu").classList.add("hidden"); $("#home").classList.add("hidden"); $("#activitat").classList.add("hidden");
   if(!CUR||!CUR.p||CUR.p.id!==id) UNDO=[];   // pila de desfer per obra: canviar d'obra la buida; recarregar la mateixa la manté
   const el=$("#detall"); el.classList.remove("hidden"); el.innerHTML=skel(6);
-  const [{data:p,error:e1},{data:lin,error:e2},{data:fls}]=await Promise.all([
+  const [{data:p,error:e1},{data:lin,error:e2},{data:fls},{data:pets}]=await Promise.all([
     sb.from("proyectos").select("*").eq("id",id).single(),
     sb.from("presupuesto_lineas").select("*").eq("proyecto_id",id).order("orden"),
     sb.storage.from("projectes").list(id,{limit:200}),   // fitxers REALS a Storage (font de veritat)
+    sb.from("peticiones_industrial").select("id,estado,fecha").eq("proyecto_id",id),
   ]);
   if(e1||e2||!p){ errBox(el,"No s'ha pogut obrir el projecte",()=>openDetall(id)); return; }
   // fora els fitxers interns: l'extracció del PDF i el pressupost generat no els ha pujat l'usuari
-  CUR={p,lin:lin||[],files:(fls||[]).filter(f=>f.name!=="_extraccio.json"&&!f.name.startsWith("PRESSUPOST_"))};
+  CUR={p,lin:lin||[],pets:pets||[],files:(fls||[]).filter(f=>f.name!=="_extraccio.json"&&!f.name.startsWith("PRESSUPOST_"))};
   crumb(`<a id="cHome">Inici</a> · <a id="cPresu">Pressupostos</a> · <b>${esc(p.nombre||"Obra")}</b>`);
   $("#cHome").addEventListener("click",showHome);
   $("#cPresu").addEventListener("click",()=>{el.classList.add("hidden"); showPresu(); loadProjectes();});
@@ -608,6 +609,22 @@ function lineImport(l){
   return null;
 }
 /* A6: cuadre per capítol — que el total de la taula sempre es pugui verificar a ull, capítol a capítol */
+/* Mesurat el 29-07-2026: «Casa Carlos Ospina» portava 7 dies aturada amb 73 de 94 partides
+   esperant preu d'industrial i 14 correus preparats que ningú havia enviat MAI (0 de 29 en tot
+   el projecte). No estava aturada per un error nostre: el pas de demanar preus vivia en una
+   pestanya a part on no s'hi entra. Un pas que no es veu on es treballa és un pas que no es fa. */
+function avisIndustrials(nInd){
+  if(!nInd) return "";
+  const prep=(CUR.pets||[]).filter(x=>x.estado!=="enviada");
+  const dies=prep.length?Math.max(...prep.map(x=>Math.floor((Date.now()-new Date(x.fecha).getTime())/864e5))):0;
+  const vell=dies>=3;
+  return `<div class="ai-note" style="margin:0 0 16px;background:${vell?'#fff4ed':'#f2f7ff'};border-color:${vell?'#f0c6a8':'#c9dcfb'};color:${vell?'#8a4b12':'#1b4d91'};align-items:flex-start">
+    ${ic('info','s')}<span><b>${nInd} ${nInd===1?"partida espera":"partides esperen"} preu d'industrial.</b>
+    ${prep.length?`Hi ha <b>${prep.length} ${prep.length===1?"correu preparat":"correus preparats"}</b>${dies>0?` des de fa ${dies} ${dies===1?"dia":"dies"}`:""}.
+      Mentre no els envieu, aquestes partides no es poden tancar i l'obra no avança.`
+     :`Encara no hi ha cap correu preparat per a aquestes partides.`}
+    <button class="btn sm" style="margin-left:10px;vertical-align:middle" id="anarPeticions">Veure les peticions</button></span></div>`;
+}
 function cuadreCapitols(lin){
   const caps=new Map();
   for(const l of lin){
@@ -620,11 +637,12 @@ function cuadreCapitols(lin){
   if(caps.size<2) return "";   // amb 1 sol capítol no aporta res, no el mostrem
   const totImp=[...caps.values()].reduce((s,c)=>s+c.imp,0);
   return `<details class="cuadre"><summary>Quadre per capítols (${caps.size}) — comprovació ràpida del total</summary>
-    <div class="tbl" style="margin-top:10px"><table><thead><tr><th>Capítol</th><th class="num">Partides</th><th class="num">Validades</th><th class="num">Import</th><th class="num">% del total</th></tr></thead><tbody>
+    <div class="tbl" style="margin-top:10px"><table><thead><tr><th>Capítol</th><th class="num">Partides</th><th class="num">Validades</th><th class="num">Import</th><th class="num">% del total</th><th></th></tr></thead><tbody>
     ${[...caps.entries()].map(([k,c])=>`<tr><td>${esc(k)}</td><td class="num">${c.n}</td>
       <td class="num">${c.val}/${c.n}${c.pend?'':' ✓'}</td><td class="num">${eur(c.imp)}</td>
-      <td class="num">${totImp?Math.round(c.imp/totImp*100):0}%</td></tr>`).join("")}
-    <tr style="font-weight:700"><td>Total</td><td class="num"></td><td class="num"></td><td class="num">${eur(totImp)}</td><td class="num">100%</td></tr>
+      <td class="num">${totImp?Math.round(c.imp/totImp*100):0}%</td>
+      <td>${c.pend?`<button class="btn sm ghost" data-capterc="${esc(k)}" title="Marca de cop les ${c.n-c.val} partides que queden d'aquest capítol com que les valora un tercer">de tercers</button>`:""}</td></tr>`).join("")}
+    <tr style="font-weight:700"><td>Total</td><td class="num"></td><td class="num"></td><td class="num">${eur(totImp)}</td><td class="num">100%</td><td></td></tr>
     </tbody></table></div></details>`;
 }
 /* Fitxers de l'obra: veure'ls, treure'n un si t'has confós d'arxiu, o afegir-ne (petició d'Aleix, 15-07).
@@ -723,6 +741,7 @@ function renderDetall(){
      ${nRec?`<div class="stat"><div class="v">${nRec}</div><div class="k">Preus rebuts (falta marge)</div></div>`:""}
      ${nJus?`<div class="stat"><div class="v">${nJus}</div><div class="k">A justificar</div></div>`:""}
    </div>
+   ${avisIndustrials(nInd)}
    ${lin.length?`<div class="progress-wrap" style="margin:0 0 18px">
      <div class="progress-lbl"><span>${pctLin}% de partides validades</span><span>${pctImp}% de l'import validat</span></div>
      <div class="progress-bar"><div class="progress-fill" style="width:${pctLin}%"></div></div>
@@ -748,6 +767,11 @@ function renderDetall(){
    </div>`;
   $("#dBack").addEventListener("click",()=>{el.classList.add("hidden"); showPresu(); loadProjectes();});
   $("#revalBtn")&&$("#revalBtn").addEventListener("click",revalorar);
+  $("#anarPeticions")&&$("#anarPeticions").addEventListener("click",()=>{
+    showPresu();
+    const t=document.querySelector('#presuTabs button[data-t="pet"]'); if(t) t.click();
+  });
+  document.querySelectorAll("[data-capterc]").forEach(b=>b.addEventListener("click",()=>totesDeTercers(b.dataset.capterc)));
   $$("[data-delf]",el).forEach(b=>b.addEventListener("click",()=>esborraFitxer(b.dataset.delf)));
   $("#addFBtn")&&$("#addFBtn").addEventListener("click",()=>$("#addFInput").click());
   $("#addFInput")&&$("#addFInput").addEventListener("change",afegeixFitxers);
@@ -1030,10 +1054,14 @@ function bindRow(td){ td.addEventListener("click",()=>editCell(td),{once:true});
 /* Marcar d'una tacada totes les partides que queden per decidir com «les valora un tercer».
    28-07: l'Aleix té 33 partides d'interiorisme a una obra; fer-ho d'una en una (amb confirmació
    cada cop) no és una eina, és un càstig — i sense això no podia arribar mai al definitiu. */
-async function totesDeTercers(){
-  const pend=CUR.lin.filter(l=>l.estado!=="validado");
+/* Amb capitol: només aquest capítol. Sense: totes les que queden.
+   Mesurat a Gym Sira (29-07-2026): 42 de 105 partides (40%) les valoraven les interioristes,
+   i anaven per CAPÍTOLS SENCERS (paviments i revestiments, sanitaris, fusteria, mobiliari,
+   marbres, miralls). Marcar-les d'una en una eren 33 confirmacions i per això no es feia. */
+async function totesDeTercers(capitol){
+  const pend=CUR.lin.filter(l=>l.estado!=="validado"&&(!capitol||(l.capitulo||"(sense capítol)")===capitol));
   if(!pend.length) return;
-  if(!confirm(`Marcar les ${pend.length} partides que queden com que NO les pressuposteu vosaltres?\n\n`
+  if(!confirm(`Marcar les ${pend.length} partides que queden${capitol?` del capítol «${capitol}»`:""} com que NO les pressuposteu vosaltres?\n\n`
     +`Són les que valora un tercer (interiorisme, DF...). Al pressupost hi sortiran com «A valorar per tercers», fora del total.\n\n`
     +`Si alguna SÍ és vostra, val més posar-hi el preu abans i marcar només la resta.`)) return;
   const btn=$("#allTercers"); if(btn){ btn.disabled=true; btn.textContent="Marcant…"; }
@@ -1167,16 +1195,23 @@ async function validarLinia(id){
    compara el que va proposar (estado_original/precio_original, mai es toca) amb el preu final. */
 async function precisionSnapshot(){
   const lin=CUR.lin;
+  /* Una partida que resulta ser de TERCERS no diu res del preu que va proposar la IA:
+     ningú l'ha arribat a jutjar. Comptar-la com a "corregida" faria semblar el sistema
+     pitjor del que és; comptar-la com a encert, millor. Queda fora de la mesura. */
+  const jutjada=l=>l.precio_original!=null&&l.precio_unitario!=null;
   const corregit=l=>Math.abs(Number(l.precio_unitario)-Number(l.precio_original))>0.01;
-  const autoLin=lin.filter(l=>l.estado_original==="auto"&&l.precio_original!=null);
-  const propLin=lin.filter(l=>l.estado_original==="proposta"&&l.precio_original!=null);
+  const autoLin=lin.filter(l=>l.estado_original==="auto"&&jutjada(l));
+  const propLin=lin.filter(l=>l.estado_original==="proposta"&&jutjada(l));
   const nAuto=autoLin.length, nAutoCorr=autoLin.filter(corregit).length;
   const minuts=CUR.p.fecha?Math.round((Date.now()-new Date(CUR.p.fecha).getTime())/60000):null;
-  sb.from("precision_snapshots").insert({proyecto_id:CUR.p.id,proyecto_nombre:CUR.p.nombre,
+  /* Res de silenci: si la mesura no es desa, ho hem de saber. Va passar 16 dies seguits
+     (faltava el permís d'escriptura) i el medidor semblava viu estant mort. */
+  const {error}=await sb.from("precision_snapshots").insert({proyecto_id:CUR.p.id,proyecto_nombre:CUR.p.nombre,
     total_partidas:lin.length,n_auto:nAuto,n_auto_corregits:nAutoCorr,
     pct_encert_auto:nAuto?Math.round((nAuto-nAutoCorr)/nAuto*1000)/10:null,
     n_proposta:propLin.length,n_proposta_corregits:propLin.filter(corregit).length,
-    minuts_revisio:minuts}).then(()=>{},()=>{});
+    minuts_revisio:minuts});
+  if(error){console.error("precisionSnapshot",error);toast("No he pogut desar la mesura de precisió — aviseu Pracmatik");}
 }
 function exportCSV(){
   const {p,lin}=CUR;
