@@ -625,6 +625,49 @@ function avisIndustrials(nInd){
      :`Encara no hi ha cap correu preparat per a aquestes partides.`}
     <button class="btn sm" style="margin-left:10px;vertical-align:middle" id="anarPeticions">Veure les peticions</button></span></div>`;
 }
+/* Cerca, filtre i ORDRE PER RISC sobre la taula de partides.
+   Per què: una obra real en porta 94, 105 o 380. Buscar-ne una a ull és inviable, i sobretot
+   NO totes valen el mateix: revisar una partida de 12 € amb la mateixa atenció que una de
+   14.000 € és on es perden les hores i on s'escapen els errors cars.
+   L'ordre «per risc» posa a dalt el que més diners mou i menys segur està. L'ordre del
+   pressupost (per capítols) es manté com a opció, que és com ells el llegeixen. */
+const VISTA={q:"",estat:"",ordre:"obra"};
+const RISC={a_justificar:3, proposta:2, pendiente_industrial:2, precio_recibido:1, auto:1, validado:0};
+function filtraLin(lin){
+  const q=VISTA.q.trim().toLowerCase();
+  let out=lin.filter(l=>{
+    if(VISTA.estat && l.estado!==VISTA.estat) return false;
+    if(!q) return true;
+    return ((l.descripcion||"")+" "+(l.capitulo||"")+" "+(l.partida||"")).toLowerCase().includes(q);
+  });
+  if(VISTA.ordre==="risc"){
+    const pes=l=>(RISC[l.estado]??1)*Math.max(Math.abs(lineImport(l)||0),1);
+    out=[...out].sort((a,b)=>pes(b)-pes(a));
+  }
+  return out;
+}
+function barraTaula(lin){
+  if(lin.length<12) return "";   // amb poques partides això només fa nosa
+  const n=filtraLin(lin).length;
+  const ops=[["","Totes"],["a_justificar","A justificar"],["proposta","Propostes"],
+             ["pendiente_industrial","Pendents d'industrial"],["precio_recibido","Preu rebut"],
+             ["auto","Preu base"],["validado","Validades"]]
+    .filter(([v])=>!v||lin.some(l=>l.estado===v));
+  return `<div class="toolbar" style="margin:14px 0 8px;gap:8px;flex-wrap:wrap">
+    <input id="qLin" type="search" placeholder="Cercar dins de les ${lin.length} partides…"
+           aria-label="Cercar partides per descripció, capítol o codi" value="${esc(VISTA.q)}"
+           style="min-width:230px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font:inherit">
+    <select id="fEstat" aria-label="Filtrar per estat" style="padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font:inherit">
+      ${ops.map(([v,t])=>`<option value="${v}" ${VISTA.estat===v?"selected":""}>${t}</option>`).join("")}
+    </select>
+    <select id="fOrdre" aria-label="Ordenar les partides" style="padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font:inherit">
+      <option value="obra" ${VISTA.ordre==="obra"?"selected":""}>Ordre del pressupost</option>
+      <option value="risc" ${VISTA.ordre==="risc"?"selected":""}>Primer el que més importa</option>
+    </select>
+    <span class="count" id="cLin" aria-live="polite">${n===lin.length?`${lin.length} partides`:`${n} de ${lin.length}`}</span>
+    ${VISTA.ordre==="risc"?`<span class="count">A dalt, el que mou més diners i està menys tancat.</span>`:""}
+  </div>`;
+}
 function cuadreCapitols(lin){
   const caps=new Map();
   for(const l of lin){
@@ -747,8 +790,9 @@ function renderDetall(){
      <div class="progress-bar"><div class="progress-fill" style="width:${pctLin}%"></div></div>
    </div>
    ${cuadreCapitols(lin)}
+   ${barraTaula(lin)}
    <div class="tbl"><table><thead><tr><th>Capítol</th><th>Descripció</th><th>Ud</th><th class="num">Quantitat</th><th class="num">Preu</th><th class="num">Import</th><th>Estat</th><th></th></tr></thead>
-    <tbody>${lin.map((l,i)=>rowLin(l,i)).join("")}</tbody></table></div>
+    <tbody id="tbodyLin">${filtraLin(lin).map(l=>rowLin(l,lin.indexOf(l))).join("")}</tbody></table></div>
    <div class="toolbar" style="margin-top:12px">
      <button class="btn ghost sm" id="undoBtn" ${UNDO.length?"":"disabled"} title="Desfer l'última acció">↶ Desfer${UNDO.length?` (${UNDO.length})`:""}</button>
      <button class="btn ghost sm" id="addPart">+ Afegir partida</button>
@@ -772,6 +816,18 @@ function renderDetall(){
     const t=document.querySelector('#presuTabs button[data-t="pet"]'); if(t) t.click();
   });
   document.querySelectorAll("[data-capterc]").forEach(b=>b.addEventListener("click",()=>totesDeTercers(b.dataset.capterc)));
+  /* La cerca repinta NOMÉS el cos de la taula: si repintés tota la fitxa, el camp perdria el
+     focus a cada lletra i escriure-hi seria impossible. */
+  const repinta=()=>{
+    const tb=$("#tbodyLin"); if(!tb) return;
+    const vis=filtraLin(CUR.lin);
+    tb.innerHTML=vis.map(l=>rowLin(l,CUR.lin.indexOf(l))).join("");
+    const c=$("#cLin"); if(c) c.textContent=vis.length===CUR.lin.length?`${CUR.lin.length} partides`:`${vis.length} de ${CUR.lin.length}`;
+    lligaFilesTaula();
+  };
+  const qi=$("#qLin"); if(qi) qi.addEventListener("input",()=>{VISTA.q=qi.value; repinta();});
+  const fe=$("#fEstat"); if(fe) fe.addEventListener("change",()=>{VISTA.estat=fe.value; repinta();});
+  const fo=$("#fOrdre"); if(fo) fo.addEventListener("change",()=>{VISTA.ordre=fo.value; renderDetall();});
   $$("[data-delf]",el).forEach(b=>b.addEventListener("click",()=>esborraFitxer(b.dataset.delf)));
   $("#addFBtn")&&$("#addFBtn").addEventListener("click",()=>$("#addFInput").click());
   $("#addFInput")&&$("#addFInput").addEventListener("change",afegeixFitxers);
@@ -779,15 +835,33 @@ function renderDetall(){
   $("#addPart")&&$("#addPart").addEventListener("click",afegirPartida);
   $("#undoBtn")&&$("#undoBtn").addEventListener("click",desfer);
   if(lin.length){
-    $$("[data-val]",el).forEach(b=>b.addEventListener("click",()=>validarLinia(b.dataset.val)));
-    $$("[data-unval]",el).forEach(b=>b.addEventListener("click",()=>desvalidarLinia(b.dataset.unval)));
-    $$("[data-zero]",el).forEach(b=>b.addEventListener("click",()=>validarZero(b.dataset.zero)));
-    $$("[data-web]",el).forEach(b=>b.addEventListener("click",()=>cercaPreuWeb(b.dataset.web)));
-    $$("[data-f]",el).forEach(td=>td.addEventListener("click",()=>editCell(td)));   // celes editables (preu, quantitat, unitat, marge, industrial)
+    lligaFilesTaula();
     if(complet) $("#dlBtn").addEventListener("click",()=>exportExcel(false));
     const dd=$("#dlDraftBtn"); if(dd) dd.addEventListener("click",()=>exportExcel(true));
     const at=$("#allTercers"); if(at) at.addEventListener("click",totesDeTercers);
   }
+}
+/* Els botons i les cel·les de la taula es lliguen aquí perquè la cerca repinta el cos de la
+   taula i els ha de tornar a lligar. Si es quedessin dins de renderDetall, després de buscar
+   res respondria: la partida es veuria però no es podria ni editar ni validar. */
+function lligaFilesTaula(){
+  const el=$("#detall");
+  $$("[data-val]",el).forEach(b=>b.addEventListener("click",()=>validarLinia(b.dataset.val)));
+  $$("[data-unval]",el).forEach(b=>b.addEventListener("click",()=>desvalidarLinia(b.dataset.unval)));
+  $$("[data-zero]",el).forEach(b=>b.addEventListener("click",()=>validarZero(b.dataset.zero)));
+  $$("[data-web]",el).forEach(b=>b.addEventListener("click",()=>cercaPreuWeb(b.dataset.web)));
+  // celes editables (preu, quantitat, unitat, marge, industrial): amb ratolí i amb teclat
+  $$("[data-f]",el).forEach(td=>{
+    td.addEventListener("click",()=>editCell(td));
+    if(!td.hasAttribute("tabindex")){
+      td.setAttribute("tabindex","0");
+      td.setAttribute("role","button");
+      td.setAttribute("aria-label","Editar "+(td.dataset.f||"valor"));
+    }
+    td.addEventListener("keydown",e=>{
+      if(e.key==="Enter"||e.key===" "){ e.preventDefault(); editCell(td); }
+    });
+  });
 }
 /* Desfer validació: torna la línia a l'estat que li toca segons l'origen (per corregir sense refer tota l'obra) */
 async function desvalidarLinia(id){
@@ -1048,7 +1122,15 @@ function askMotiu(l){
   const ta=$("#mtInput",ov); ta.focus();
   ta.addEventListener("keydown",e=>{ if(e.key==="Escape")close(); if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))$("#mtSave",ov).click(); });
 }
-function bindRow(td){ td.addEventListener("click",()=>editCell(td),{once:true}); }
+/* Després d'editar, la cel·la ha de tornar a respondre TAMBÉ al teclat. Si només es tornés a
+   lligar el clic, qui treballa sense ratolí perdria la cel·la just després de fer-la servir. */
+function bindRow(td){
+  td.addEventListener("click",()=>editCell(td),{once:true});
+  td.setAttribute("tabindex","0"); td.setAttribute("role","button");
+  td.addEventListener("keydown",function h(e){
+    if(e.key==="Enter"||e.key===" "){ e.preventDefault(); td.removeEventListener("keydown",h); editCell(td); }
+  });
+}
 // «0 €»: partida que NO pressuposta ABM perquè va per compte de tercers (interiorisme/AP) — Aleix 21-07.
 // Valida a 0 € sense necessitar quantitat ni preu, amb confirmació explícita (mai un 0 silenciós).
 /* Marcar d'una tacada totes les partides que queden per decidir com «les valora un tercer».
