@@ -641,8 +641,11 @@ function filtraLin(lin){
     return ((l.descripcion||"")+" "+(l.capitulo||"")+" "+(l.partida||"")).toLowerCase().includes(q);
   });
   if(VISTA.ordre==="risc"){
-    const pes=l=>(RISC[l.estado]??1)*Math.max(Math.abs(lineImport(l)||0),1);
-    out=[...out].sort((a,b)=>pes(b)-pes(a));
+    /* Primer per QUÈ FALTA DECIDIR, després per diners. Multiplicar les dues coses seria un
+       error: una partida «a justificar» encara NO té import (per això s'ha de decidir), i
+       multiplicant per zero acabava al final de tot — just la que més necessita mirada. */
+    const imp=l=>Math.abs(lineImport(l)||0);
+    out=[...out].sort((a,b)=>((RISC[b.estado]??1)-(RISC[a.estado]??1))||(imp(b)-imp(a)));
   }
   return out;
 }
