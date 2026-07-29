@@ -1042,6 +1042,17 @@ function rowLin(l,i){
     <td style="white-space:nowrap">${accions}</td>
   </tr>`;
 }
+/* Torna true si es pot desar; false si la persona ha dit que NO al veure que el número
+   se surt de l'escala d'aquesta obra. Compara contra el que ja hi ha a la MATEIXA obra
+   (no contra un límit fix): en una reforma petita 8.000 € ja és molt, i en una obra nova
+   d'un xalet no ho és. Amb menys de 5 referències no compara: no hi hauria escala honesta. */
+function confirmaSiEsSurtDeToLa(valor,qué,referencies){
+  const refs=(referencies||[]).map(Number).filter(n=>Number.isFinite(n)&&n>0);
+  if(refs.length<5) return true;
+  const max=Math.max(...refs);
+  if(!(valor>max*25)) return true;
+  return confirm(`${eur(valor)} és unes ${Math.round(valor/max)} vegades el ${qué} més alt d'aquesta obra (${eur(max)}).\n\nÉs correcte?`);
+}
 function editCell(td){
   if(td.querySelector("input")) return;
   const f=td.dataset.f, id=td.dataset.id, l=CUR.lin.find(x=>x.id===id);
@@ -1060,16 +1071,12 @@ function editCell(td){
     /* Un dit de més al teclat no pot acabar en el pressupost del client. Provat el 29-07-2026:
        escrivint 99999999 en un preu, el TOTAL de l'obra passava a 11.500 MILIONS d'euros i
        ningú deia res. No es bloqueja (qui mana és qui pressuposta, cl. 4.4): es demana
-       confirmació quan el número se surt de l'escala de la mateixa obra. */
-    if(!esTexte&&v!=null&&(f==="precio_unitario"||f==="precio_industrial")){
-      const altres=CUR.lin.filter(x=>x.id!==id&&x.precio_unitario!=null&&Number(x.precio_unitario)>0)
-                          .map(x=>Number(x.precio_unitario));
-      if(altres.length>=5){
-        const max=Math.max(...altres);
-        if(v>max*25&&!confirm(`${eur(v)} és unes ${Math.round(v/max)} vegades el preu més alt d'aquesta obra (${eur(max)}).\n\nÉs correcte?`)){
-          restore(); return;
-        }
-      }
+       confirmació quan el número se surt de l'escala de la mateixa obra.
+       Es vigila el PREU i també l'IMPORT, perquè les portes són quatre i multipliquen igual:
+       preu, quantitat, preu d'industrial i marge. L'import és el número que veu el client. */
+    if(!esTexte&&v!=null&&(f==="precio_unitario"||f==="precio_industrial")
+       && !confirmaSiEsSurtDeToLa(v,"preu",CUR.lin.filter(x=>x.id!==id).map(x=>x.precio_unitario))){
+      restore(); return;
     }
     const prevPrice=l.precio_unitario;   // per a l'aprenentatge
     const upd={};
@@ -1087,6 +1094,11 @@ function editCell(td){
     } else upd[f]=v;
     const nl={...l,...upd};
     if(nl.medida!=null&&nl.precio_unitario!=null) upd.importe=Math.round(nl.medida*nl.precio_unitario*100)/100;
+    // Segona porta: la CANTITAT i el MARGE no toquen el preu però multipliquen l'import igual.
+    // Es mira el número final, que és el que acaba al document del client.
+    if(upd.importe!=null&&!confirmaSiEsSurtDeToLa(upd.importe,"import",CUR.lin.filter(x=>x.id!==id).map(x=>lineImport(x)))){
+      restore(); return;
+    }
     // G1: bloqueig optimista — si algú ha tocat aquesta línia des que la vam carregar, updated_at ja no coincideix
     // i la condició no fa match a cap fila (0 files tornades) → no sobreescrivim en silenci, avisem i recarreguem.
     const {data:updRows,error}=await sb.from("presupuesto_lineas").update(upd).eq("id",id).eq("updated_at",l.updated_at).select("id,updated_at");
