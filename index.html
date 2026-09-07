@@ -532,15 +532,10 @@ function openNewProj(){
     if(pujats.length) await sb.from("proyectos").update({archivos:pujats}).eq("id",proj.id);
     ov.remove();
     // VALORACIÓ IMMEDIATA (07-09-2026): abans l'obra només esperava el vigilant, que passa cada
-    // mitja hora → l'Aleix va pujar el PDF a les 9:32 i no va veure res fins les 10:31. Ara es
-    // dispara aquí mateix i la pantalla ho va dient. No s'espera la resposta (triga ~30 s) i, si
-    // el navegador es tanca, el vigilant segueix sent la xarxa de seguretat: mai es perd una obra.
-    try{
-      const {data:{session}}=await sb.auth.getSession();
-      fetch(SUPA_URL+"/functions/v1/motor-valoracio",{method:"POST",
-        headers:{Authorization:"Bearer "+session.access_token,apikey:SUPA_ANON,"Content-Type":"application/json"},
-        body:JSON.stringify({proyecto_id:proj.id})}).catch(()=>{});
-    }catch(_){ /* si falla, el vigilant l'agafarà igualment */ }
+    // mitja hora → l'Aleix va pujar el PDF a les 9:32 i no va veure les partides fins les 10:31.
+    // Ara la dispara la PRÒPIA BASE DE DADES en desar-se els fitxers (disparador `trg_dispara_valoracio`):
+    // així funciona encara que es tanqui el navegador o falli la xarxa a mig camí — el que ha de
+    // ser fiable no pot dependre de la pestanya oberta. Aquí només queda dir-ho i ensenyar el progrés.
     toast("Obra creada ✓ — l'estem llegint, en un parell de minuts hi seran les partides");
     openDetall(proj.id);   // el tècnic veu el progrés en comptes de tornar a la llista
   });
