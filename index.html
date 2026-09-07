@@ -430,8 +430,12 @@ function renderMods(){
     el.addEventListener("keydown",e=>{if(e.key==="Enter")openModule(el.dataset.open);}); });
 }
 function crumb(html){ $("#crumb").innerHTML=html; }
-function showHome(){ $("#home").classList.remove("hidden"); $("#presu").classList.add("hidden"); $("#detall").classList.add("hidden"); $("#activitat").classList.add("hidden"); crumb("Inici"); }
-function showPresu(){ $("#home").classList.add("hidden"); $("#presu").classList.remove("hidden"); $("#detall").classList.add("hidden"); $("#activitat").classList.add("hidden"); crumb('<a id="cHome">Inici</a> · <b>Pressupostos</b>'); $("#cHome").addEventListener("click",showHome); }
+/* Mentre una obra s'està llegint, la pantalla es refresca sola cada 10 s (l'usuari no ha de saber
+   quan tornar). El temporitzador es cancel·la en sortir del detall: mai deixar-ne un de viu. */
+let POLL = null;
+const aturaPoll = () => { if (POLL) { clearTimeout(POLL); POLL = null; } };
+function showHome(){ aturaPoll(); $("#home").classList.remove("hidden"); $("#presu").classList.add("hidden"); $("#detall").classList.add("hidden"); $("#activitat").classList.add("hidden"); crumb("Inici"); }
+function showPresu(){ aturaPoll(); $("#home").classList.add("hidden"); $("#presu").classList.remove("hidden"); $("#detall").classList.add("hidden"); $("#activitat").classList.add("hidden"); crumb('<a id="cHome">Inici</a> · <b>Pressupostos</b>'); $("#cHome").addEventListener("click",showHome); }
 function showActivitat(){ $("#home").classList.add("hidden"); $("#presu").classList.add("hidden"); $("#detall").classList.add("hidden"); $("#activitat").classList.remove("hidden"); crumb('<a id="cHome2">Inici</a> · <b>Activitat</b>'); $("#cHome2").addEventListener("click",showHome); }
 function openModule(id){ if(id==="presu"){ showPresu(); loadProjectes(); } if(id==="activitat"){ showActivitat(); loadActivitat(); } }
 
@@ -526,8 +530,19 @@ function openNewProj(){
       else pujats.push({nom:f.name,mida:f.size});
     }
     if(pujats.length) await sb.from("proyectos").update({archivos:pujats}).eq("id",proj.id);
-    ov.remove(); toast("Obra creada ✓ — entra a la cua de valoració");
-    loadProjectes();
+    ov.remove();
+    // VALORACIÓ IMMEDIATA (07-09-2026): abans l'obra només esperava el vigilant, que passa cada
+    // mitja hora → l'Aleix va pujar el PDF a les 9:32 i no va veure res fins les 10:31. Ara es
+    // dispara aquí mateix i la pantalla ho va dient. No s'espera la resposta (triga ~30 s) i, si
+    // el navegador es tanca, el vigilant segueix sent la xarxa de seguretat: mai es perd una obra.
+    try{
+      const {data:{session}}=await sb.auth.getSession();
+      fetch(SUPA_URL+"/functions/v1/motor-valoracio",{method:"POST",
+        headers:{Authorization:"Bearer "+session.access_token,apikey:SUPA_ANON,"Content-Type":"application/json"},
+        body:JSON.stringify({proyecto_id:proj.id})}).catch(()=>{});
+    }catch(_){ /* si falla, el vigilant l'agafarà igualment */ }
+    toast("Obra creada ✓ — l'estem llegint, en un parell de minuts hi seran les partides");
+    openDetall(proj.id);   // el tècnic veu el progrés en comptes de tornar a la llista
   });
 }
 
@@ -805,17 +820,32 @@ function renderDetall(){
      <button class="btn ghost sm" id="addPart">+ Afegir partida</button>
      <span class="count">Per a partides que falten (oblidades per la DF, extres…), sense tocar l'Excel original.</span></div>
    <div class="toolbar" style="margin-top:16px">
-     <button class="btn" id="dlBtn" ${complet?"":"disabled"} title="${complet?"Descarrega el pressupost":"Disponible quan totes les partides estiguin validades"}">${ic('dl','s')} Descarregar pressupost</button>
-     ${complet?"":`<button class="btn ghost" id="dlDraftBtn" title="Baixa'l ara amb el que hi ha: les partides que encara no has revisat hi surten marcades com a PENDENT, no amb un preu">${ic('dl','s')} Descarregar esborrany</button>`}
+     ${/* Mentre falten partides per revisar, el botó que ha de saltar a la vista és l'ESBORRANY:
+           és l'únic que es pot baixar i té el format d'ABM. En obra nova la majoria de partides
+           esperen preu d'industrial, així que el 100% validat pot trigar setmanes: deixar només
+           un botó blau apagat feia pensar que el pressupost no es podia treure (Aleix, 28-07). */""}
+     ${complet
+       ? `<button class="btn" id="dlBtn" title="Descarrega el pressupost definitiu">${ic('dl','s')} Descarregar pressupost</button>`
+       : `<button class="btn" id="dlDraftBtn" title="Baixa'l ara amb el que hi ha: les partides que encara no has revisat hi surten marcades com a PENDENT, no amb un preu">${ic('dl','s')} Descarregar esborrany (format ABM)</button>
+          <button class="btn ghost" id="dlBtn" disabled title="Disponible quan totes les partides estiguin decidides">${ic('dl','s')} Pressupost definitiu</button>`}
      ${complet?"":`<button class="btn ghost" id="allTercers" title="Les partides que no pressuposteu vosaltres (interiorisme, DF, tercers) es marquen totes de cop. Al pressupost hi surten com «A valorar per tercers», fora del total.">Marcar les ${lin.filter(x=>x.estado!=="validado").length} pendents com a de tercers</button>`}
      ${complet?"":`<span class="count">El definitiu es genera quan totes les partides estan decidides: amb preu o marcades com a de tercers.</span>`}
    </div>
    <div class="ai-note">${ic('info','s')}<span><b>Revisió tècnica obligatòria:</b> les partides i imports es proposen automàticament (IA) a partir dels vostres plànols, amidaments i base de preus. Reviseu i valideu cada partida abans d'usar el pressupost comercialment.</span></div>`
-   :`<div class="empty"><div class="icbox">${ic('file')}</div><h3>Valoració en preparació</h3><p>Hem rebut la documentació. Quan la valoració estigui a punt, les partides apareixeran aquí per revisar-les i validar-les.</p></div>`}
+   :`<div class="empty"><div class="icbox">${ic('file')}</div>
+      <h3>${["rebut","en_valoracio"].includes(p.estado)?"Estem llegint l'estat d'amidaments…":"Valoració en preparació"}</h3>
+      <p>${["rebut","en_valoracio"].includes(p.estado)
+        ? "Normalment triga <b>un parell de minuts</b>. Aquesta pantalla s'actualitza sola: quan acabi, les partides apareixeran aquí per revisar-les."
+        : "Hem rebut la documentació. Quan la valoració estigui a punt, les partides apareixeran aquí per revisar-les i validar-les."}</p>
+      ${["rebut","en_valoracio"].includes(p.estado)?`<div class="skel" style="max-width:520px;margin:0 auto"><div class="row"></div><div class="row"></div><div class="row"></div></div>`:""}
+      </div>`}
    <div class="toolbar" style="margin-top:30px;border-top:1px solid var(--line);padding-top:14px">
      <button class="btn ghost sm" id="delObra" style="color:#b91c1c">Eliminar aquesta obra</button>
      <span class="count">Esborra l'obra, els seus fitxers i les seves partides. No es pot desfer.</span>
    </div>`;
+  // obra que s'està llegint → torna-hi sola d'aquí a 10 s (i para quan ja hi ha partides)
+  aturaPoll();
+  if (["rebut","en_valoracio"].includes(p.estado) && !lin.length) POLL = setTimeout(() => openDetall(p.id), 10000);
   $("#dBack").addEventListener("click",()=>{el.classList.add("hidden"); showPresu(); loadProjectes();});
   $("#revalBtn")&&$("#revalBtn").addEventListener("click",revalorar);
   $("#anarPeticions")&&$("#anarPeticions").addEventListener("click",()=>{
