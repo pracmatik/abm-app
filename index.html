@@ -14,12 +14,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.min.js" integrity="sha384-DjOvX/sJLsmbMrw4wTvf6l3kiGBjdxyOO6X2MTFwOOXGkjN/mE08BoDzrpaaIjil" crossorigin="anonymous"></script>
 <script>/* Vigia Pracmatik: registre d'errors de client (silencios, top 5/sessio) */
+window.APP_VERSION="2026-09-08.1";
 (function(){try{var U="https://wjpvdigztxbhcmtsqaxz.supabase.co",K="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqcHZkaWd6dHhiaGNtdHNxYXh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MDg3NDYsImV4cCI6MjA5ODQ4NDc0Nn0.9wt-iQj8aQ9MpzQX65jtQVU964Y9F_FJUJPb3vDD3Tw",A="abm-presupuestos",M=5,S={},n=0;
 function rep(m,st){try{if(n>=M)return;var k=String(m||"").slice(0,120);if(!k||S[k])return;S[k]=1;n++;
 var u="";try{u=(window.ME&&(ME.nombre||ME.email))||"";}catch(e){}
 var v="";try{v=window.APP_VERSION||"";}catch(e){}
 fetch(U+"/rest/v1/errores_cliente",{method:"POST",headers:{"apikey":K,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({app:A,version:v,url:location.pathname+location.hash,usuario:String(u).slice(0,80),mensaje:String(m).slice(0,500),stack:String(st||"").slice(0,2000)})}).catch(function(){});
 }catch(e){}}
+window.registraError=function(m,ctx){try{rep("APP: "+m,JSON.stringify(ctx||{}).slice(0,1800));}catch(e){}};
 window.addEventListener("error",function(e){if(!e||!e.message)return;rep(e.message,(e.error&&e.error.stack)||((e.filename||"")+":"+(e.lineno||"")));},true);
 window.addEventListener("unhandledrejection",function(e){var r=(e&&e.reason)||{};rep(r.message||String(r),r.stack||"");});
 }catch(e){}})();</script>
@@ -918,9 +920,7 @@ async function revalorar(){
     const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(SUPA_URL+"/functions/v1/motor-valoracio",{method:"POST",
       headers:{Authorization:"Bearer "+session.access_token,apikey:SUPA_ANON,"Content-Type":"application/json"},
-      // format ABM: el document surt amb el seu membret i la seva maqueta, que es el que
-      // entreguen al client (Aleix 28-07: «el necessito amb la imatge i els logos nostres»)
-      body:JSON.stringify({proyecto_id:CUR.p.id, esborrany:!!esborrany, format:"abm"})});
+      body:JSON.stringify({proyecto_id:CUR.p.id})});
     const j=await r.json();
     // «ja s'està valorant» no és una fallada: és que el vigilant ha agafat l'obra fa un moment.
     // Dir-ho amb calma evita que es piqui el botó tres cops seguits pensant que no va.
@@ -941,9 +941,16 @@ async function exportExcel(esborrany){
     const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(SUPA_URL+"/functions/v1/genera-excel",{method:"POST",
       headers:{Authorization:"Bearer "+session.access_token,apikey:SUPA_ANON,"Content-Type":"application/json"},
-      body:JSON.stringify({proyecto_id:CUR.p.id})});
+      // ⚠️ `esborrany` HI HA DE SER: sense ell el servidor aplica el candau del DEFINITIU i el botó
+      // d'esborrany no baixa res (Aleix, 08-09 16:04). format ABM = membret i maqueta d'ABM (Aleix 28-07).
+      body:JSON.stringify({proyecto_id:CUR.p.id, esborrany:!!esborrany, format:"abm"})});
     const j=await r.json();
-    if(!j.ok) throw new Error(j.error||"generació");
+    if(!j.ok){
+      // Si demanem un ESBORRANY i el servidor contesta amb el candau, l'error és NOSTRE (no d'ell):
+      // es registra amb tot el context i s'explica, en comptes de dir-li que premi el mateix botó.
+      if(esborrany && /sense validar|per revisar/i.test(j.error||"")) { registraError("esborrany bloquejat pel candau", {obra:CUR.p.id, resposta:j}); throw new Error("NOSTRE: el servidor ha tractat l'esborrany com a definitiu"); }
+      throw new Error(j.error||"generació");
+    }
     const {data,error}=await sb.storage.from("projectes").download(j.path);
     if(error) throw error;
     const a=document.createElement("a"); a.href=URL.createObjectURL(data);
