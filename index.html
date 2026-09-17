@@ -14,7 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.min.js" integrity="sha384-DjOvX/sJLsmbMrw4wTvf6l3kiGBjdxyOO6X2MTFwOOXGkjN/mE08BoDzrpaaIjil" crossorigin="anonymous"></script>
 <script>/* Vigia Pracmatik: registre d'errors de client (silencios, top 5/sessio) */
-window.APP_VERSION="2026-09-08.1";
+window.APP_VERSION="2026-09-17.1";
 (function(){try{var U="https://wjpvdigztxbhcmtsqaxz.supabase.co",K="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqcHZkaWd6dHhiaGNtdHNxYXh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MDg3NDYsImV4cCI6MjA5ODQ4NDc0Nn0.9wt-iQj8aQ9MpzQX65jtQVU964Y9F_FJUJPb3vDD3Tw",A="abm-presupuestos",M=5,S={},n=0;
 function rep(m,st){try{if(n>=M)return;var k=String(m||"").slice(0,120);if(!k||S[k])return;S[k]=1;n++;
 var u="";try{u=(window.ME&&(ME.nombre||ME.email))||"";}catch(e){}
@@ -1049,9 +1049,14 @@ function rowLin(l,i){
       <div class="edit" data-f="precio_industrial" data-id="${esc(l.id)}" title="Preu de l'industrial — clica per corregir-lo">ind: ${eur(l.precio_industrial)}</div>
       <div class="edit" data-f="margen_pct" data-id="${esc(l.id)}" title="Marge % — clica per posar-lo o canviar-lo">${l.margen_pct!=null?esc(String(l.margen_pct))+"% → "+eur(l.precio_unitario):'<span class="muted">+ marge %</span>'}</div></td>`;
   } else if(l.estado==="pendiente_industrial"){
+    // Preu de REFERÈNCIA (17-09, queixa d'Aleix del 16-09): la base ja havia trobat un preu per a aquesta
+    // partida i es llençava, deixant la casella buida. Ara es veu com a punt de partida. NO és un preu:
+    // no entra al total ni al document, i la partida segueix necessitant el preu de l'industrial.
+    const ref=(l.precio_referencia!=null&&l.precio_unitario==null)
+      ? `<div class="cap" style="margin-top:2px;color:#8a5a12" title="Preu orientatiu de la vostra base de preus per a una partida semblant. No compta al total: serveix per tenir un punt de partida mentre no arriba el preu de l'industrial.">ref. ${eur(l.precio_referencia)}${l.unidad?"/"+esc(l.unidad):""} · a confirmar</div>` : "";
     priceCell=`<td class="num">
       <div class="edit" data-f="precio_industrial" data-id="${esc(l.id)}" title="Preu que us passa l'industrial (després hi poseu marge)">${l.precio_unitario!=null?eur(l.precio_unitario):'<span class="muted">+ preu industrial</span>'}</div>
-      <div class="edit" data-f="precio_unitario" data-id="${esc(l.id)}" title="O poseu directament el vostre preu, sense marge" style="font-size:11px;margin-top:2px"><span class="muted">o preu directe</span></div></td>`;
+      <div class="edit" data-f="precio_unitario" data-id="${esc(l.id)}" title="O poseu directament el vostre preu, sense marge" style="font-size:11px;margin-top:2px"><span class="muted">o preu directe</span></div>${ref}</td>`;
   } else {
     priceCell=`<td class="num ${nv?'edit':''}" ${nv?`data-f="precio_unitario" data-id="${esc(l.id)}" title="Clica per editar"`:""}>${eur(l.precio_unitario)}</td>`;
   }
