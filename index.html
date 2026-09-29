@@ -14,7 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.min.js" integrity="sha384-DjOvX/sJLsmbMrw4wTvf6l3kiGBjdxyOO6X2MTFwOOXGkjN/mE08BoDzrpaaIjil" crossorigin="anonymous"></script>
 <script>/* Vigia Pracmatik: registre d'errors de client (silencios, top 5/sessio) */
-window.APP_VERSION="2026-09-17.1";
+window.APP_VERSION="2026-09-29.1";
 (function(){try{var U="https://wjpvdigztxbhcmtsqaxz.supabase.co",K="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqcHZkaWd6dHhiaGNtdHNxYXh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MDg3NDYsImV4cCI6MjA5ODQ4NDc0Nn0.9wt-iQj8aQ9MpzQX65jtQVU964Y9F_FJUJPb3vDD3Tw",A="abm-presupuestos",M=5,S={},n=0;
 function rep(m,st){try{if(n>=M)return;var k=String(m||"").slice(0,120);if(!k||S[k])return;S[k]=1;n++;
 var u="";try{u=(window.ME&&(ME.nombre||ME.email))||"";}catch(e){}
@@ -609,11 +609,27 @@ async function openDetall(id){
   ]);
   if(e1||e2||!p){ errBox(el,"No s'ha pogut obrir el projecte",()=>openDetall(id)); return; }
   // fora els fitxers interns: l'extracció del PDF i el pressupost generat no els ha pujat l'usuari
-  CUR={p,lin:lin||[],pets:pets||[],files:(fls||[]).filter(f=>f.name!=="_extraccio.json"&&!f.name.startsWith("PRESSUPOST_"))};
+  CUR={p,lin:lin||[],pets:pets||[],files:(fls||[]).filter(f=>f.name!=="_extraccio.json"&&!f.name.startsWith("PRESSUPOST_")),
+       llegit:(fls||[]).some(f=>f.name==="_extraccio.json")};   // pas 1 de la lectura per imatge ja fet
   crumb(`<a id="cHome">Inici</a> · <a id="cPresu">Pressupostos</a> · <b>${esc(p.nombre||"Obra")}</b>`);
   $("#cHome").addEventListener("click",showHome);
   $("#cPresu").addEventListener("click",()=>{el.classList.add("hidden"); showPresu(); loadProjectes();});
   renderDetall();
+}
+/* Pantalla d'espera honesta (Somnis Estudi, 29-09-2026): deia «un parell de minuts» mentre el pas 2
+   esperava 11 minuts el torn del vigilant; l'Aleix va esperar 3 i va escriure «no carrega». Ara el pas 2
+   s'encadena sol, i la pantalla diu en quin pas som i, si s'allarga, que es pot tancar sense perdre res.
+   Si passa de 5 minuts queda registrat com a incidència (una sola vegada per obra i sessió). */
+const ESPERA={};
+function textEspera(p){
+  const t0=ESPERA[p.id]||(ESPERA[p.id]=Date.now()), min=(Date.now()-t0)/60000;
+  if(min>5&&!ESPERA[p.id+":avis"]){ ESPERA[p.id+":avis"]=1; window.registraError&&window.registraError("Espera llarga: obra sense partides després de 5 min",{obra:p.id,estat:p.estado,llegit:!!CUR.llegit}); }
+  const pas=CUR.llegit
+    ? "<b>Pas 2 de 2:</b> document llegit ✓. Ara s'hi posen els preus, sol trigar menys d'un minut."
+    : "<b>Pas 1 de 2:</b> llegint el document. Sol trigar menys d'un minut; un PDF escanejat pot trigar uns minuts.";
+  return pas+(min>5
+    ? "<br><br>Està trigant més del normal. Pots tancar aquesta pantalla: la feina continua sola i l'obra et quedarà a la llista. Ja ens n'ha arribat l'avís."
+    : "<br>Aquesta pantalla s'actualitza sola: quan acabi, les partides apareixeran aquí.");
 }
 function lineImport(l){
   if(l.importe!=null) return Number(l.importe);
@@ -832,7 +848,7 @@ function renderDetall(){
    :`<div class="empty"><div class="icbox">${ic('file')}</div>
       <h3>${["rebut","en_valoracio"].includes(p.estado)?"Estem llegint l'estat d'amidaments…":"Valoració en preparació"}</h3>
       <p>${["rebut","en_valoracio"].includes(p.estado)
-        ? "Normalment triga <b>un parell de minuts</b>. Aquesta pantalla s'actualitza sola: quan acabi, les partides apareixeran aquí per revisar-les."
+        ? textEspera(p)
         : "Hem rebut la documentació. Quan la valoració estigui a punt, les partides apareixeran aquí per revisar-les i validar-les."}</p>
       ${["rebut","en_valoracio"].includes(p.estado)?`<div class="skel" style="max-width:520px;margin:0 auto"><div class="row"></div><div class="row"></div><div class="row"></div></div>`:""}
       </div>`}
@@ -925,7 +941,7 @@ async function revalorar(){
     // «ja s'està valorant» no és una fallada: és que el vigilant ha agafat l'obra fa un moment.
     // Dir-ho amb calma evita que es piqui el botó tres cops seguits pensant que no va.
     toast(j.ja_en_curs ? "Aquesta obra ja s'està valorant ara mateix. Espera un minut i refresca."
-      : j.fase==="visio" ? `Lectura del PDF feta (${j.partides} partides) — torna a prémer «Re-valorar» per completar la valoració`
+      : j.fase==="visio" ? `PDF llegit (${j.partides} partides). Ara s'hi posen els preus: en un minut les tens aquí`
       : j.ok?`Revalorat ✓ · ${j.partides} partides`:("No s'ha pogut: "+(j.error||j.motiu||"revisa els fitxers")).slice(0,90));
   }catch(e){ toast("Error de connexió en revalorar. Torna-ho a provar."); }
   openDetall(CUR.p.id);
